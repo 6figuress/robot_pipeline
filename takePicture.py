@@ -1,18 +1,35 @@
-from URBasic import ISCoin, CameraSettings
+import csv
+from math import radians
+from URBasic import ISCoin, CameraSettings, Joint6D
 from URBasic.devices.camera_settings import FocusSettings
 
-from ur_ikfast import ur_kinematics
+import cv2 as cv
+from cv2.typing import Vec6f
+import numpy as np
 
 from camera_sync.camera import Camera
-from camera_sync.referential import Transform
-from camera_sync.plotting import vizPoses
 
-import numpy as np
 import os
 import time
 import requests
 import xmlrpc.client
 import json
+
+
+READING_FOLDER_PATH = "./readings"
+PICS_PATH = "./pics"
+READING_PATH = os.path.join(READING_FOLDER_PATH, "reading.csv")
+
+
+# TODO: This method is a dumb copy of a method in the jupyter notebook in ur3e control.
+# When read, we need to find a good place for it -> maybe directly in the control library ?
+def readJson(path):
+    points = []
+    with open(path, "r") as file:
+        data = json.load(file)["modTraj"]
+        for i in data:
+            points.append(i["positions"])
+    return points
 
 
 def get_vs(uri) -> tuple[str, dict]:
@@ -51,34 +68,26 @@ def startup():
             print("Other error occurred: %s" % err)
 
     # create readings folder if it does not exist
-    if not os.path.exists("readings"):
-        os.makedirs("readings")
+    if not os.path.exists(READING_FOLDER_PATH):
+        os.makedirs(READING_FOLDER_PATH)
+
+    if not os.path.exists(READING_PATH):
+        with open(READING_PATH, "w") as f:
+            f.write("joint1,joint2,joint3,joint4,joint5,joint6,timestamp\n")
 
 
-
-def setFocus(robot: ISCoin):
+def setFocus(robot: ISCoin, cam: Camera):
     cs = CameraSettings()
-    cs.focusSettings.setManualMode(FocusSettings.FocusValue(500))
+    cs.focusSettings.setManualMode(FocusSettings.FocusValue(cam._focus))
     robot.camera.setCameraSettings(cs)
 
+
 def showStream(robot: ISCoin):
-    robot.displayCameraStreamOCVParallel() # 
+    robot.displayCameraStreamOCVParallel()
 
 
-def fk(angles)-> Transform:
-    arm = ur_kinematics.URKinematics("ur3e")
-    
-    # Copy the 3x4 transformation values into the 4x4 matrix
-    mat = arm.forward(angles, rotation_type="matrix")
-    return Transform(rot_mat=mat[:3, :3], tvec=mat[:3, 3])
-    
-
-
-def readRobot(robot: ISCoin):
-    timestamp = int(time.time())
-
-    pic = robot.camera.getImageAsImage()
-    pic.save(f"pics/{timestamp}.png")
+def savePose(robot: ISCoin, filename: str):
+    # filename = takePic(PICS_PATH)
 
     joints = robot.robot_control.get_actual_joint_positions()
     j1, j2, j3, j4, j5, j6 = (
@@ -90,65 +99,89 @@ def readRobot(robot: ISCoin):
         joints.j6,
     )
 
-    t = fk(joints.toList())
+    with open(READING_PATH, "a") as f:
+        f.write(f"{j1},{j2},{j3},{j4},{j5},{j6},{filename}\n")
 
 
-    with open("readings/reading.csv", "a") as f:
-        f.write(f"{j1},{j2},{j3},{j4},{j5},{j6},{t.rvec.ravel()},{t.tvec},{timestamp}\n")
+def takePic(robot: ISCoin, folder: str) -> str:
+    timestamp = int(time.time())
 
-    # vizPoses([t], limits=(-1, 1), length=0.2)
-
-
-def benchmarkIk():
-    robot_name = 'ur3e'
-    arm = ur_kinematics.URKinematics(robot_name)
-    ikfast_res = 0
-    total = 10000
-
-    for i in range(total):
-        joint_angles = np.random.uniform(-1*np.pi, 1*np.pi, size=6)
-        pose = arm.forward(joint_angles)
-        ik_solution = arm.inverse(pose, False, q_guess=joint_angles)
-        if ik_solution is not None:
-            ikfast_res += 1 if np.allclose(joint_angles, ik_solution, rtol=0.01) else 0
-    print("IKFAST success rate %s of %s" % (ikfast_res, total))
-    print("percentage %.1f", ikfast_res/float(total)*100.)
+    pic = robot.camera.getImageAsImage()
+    pic.save(os.path.join(folder, f"{timestamp}.png"))
+    return f"{timestamp}.png"
 
 
+def takePicCamera(cam: Camera, folder: str) -> str:
+    timestamp = int(time.time())
 
-robot_cam = Camera("robot", -1, focus=500, resolution=(640, 480))
-
-
-
-startup()
-
-
-iscoin = ISCoin(host="10.30.5.158", opened_gripper_size_mm=40)
-
-# showStream(iscoin)
-# time.sleep(1)
-
-setFocus(iscoin)
+    pic = cam.takePic()
+    cv.imwrite(os.path.join(folder, f"{timestamp}.png"), pic)
+    return f"{timestamp}.png"
 
 
-
-time.sleep(2)
-
-
-
-# joints = iscoin.robot_control.get_actual_joint_positions().toList()
+def readPosesFromFile(filepath: str) -> np.ndarray[Vec6f]:
+    return np.array([[0.1, 0.2, 0.3, 0.4, 0.5, 0.6]])
 
 
+def readPosesFromCSV(path: str) -> np.ndarray[Vec6f]:
+    with open(path, "r") as file:
+        csv_reader = csv.reader(file)
+        header = next(csv_reader, None)
 
-# t = fk(joints)
+        print("Header is : ", header)
 
-readRobot(iscoin)
+        poses = []
+
+        for row in csv_reader:
+            angles = np.array(row[:6], dtype=np.float32)
+            poses.append(angles)
+    return angles
 
 
+if __name__ == "__main__":
+    # TODO: We can try to set a closer focus distance
 
-# T is current robot pose
+    cam = Camera("Logitec_robot", 2, focus=10, resolution=(1920, 1080))
 
-# vizPoses([t], limits=(-1, 1), length=0.2)
+    iscoin = ISCoin(host="10.30.5.158", opened_gripper_size_mm=40)
 
-# iscoin.camera.resetCameraSettings()
+    time.sleep(1)
 
+    i = 0
+    while True:
+        ret, frame = cam.captureStream.read()
+        if not ret:
+            raise Exception("Uh oh ")
+        cv.imshow("frame", frame)
+        key = cv.waitKey(1)
+
+        if key == ord("q"):
+            break
+        elif key == ord("s") or key == ord("c"):
+            filename = takePicCamera(cam, "./pics")
+
+            savePose(iscoin, filename)
+            print(f"Picture n°{i} taken and pose saved")
+            i += 1
+
+    # robot_cam = Camera("robot", -1, focus=500, resolution=(640, 480))
+
+    # startup()
+
+    # setFocus(iscoin, robot_cam)
+
+    # time.sleep(2)
+
+    # showStream(iscoin)
+
+    # angles = readPosesFromFile("")
+
+    # acc = radians(120)
+
+    # speed = radians(50)
+
+    # for angle in angles:
+    #     iscoin.robot_control.movej(Joint6D.createFromRadList(angle), a=acc, v=speed)
+    #     # TODO: Check if a delay is needed or not -> can display the stream in paralel to see if robot need time for pose to settle
+    #     time.sleep(0.5)
+    #     savePose()
