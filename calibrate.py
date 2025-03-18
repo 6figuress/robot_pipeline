@@ -250,18 +250,23 @@ def loadCalibration(filepath: str) -> tuple[Transform, Transform]:
     return base2world, grip2cam
 
 
-poses = readCSV()
+if __name__ == "__main__":
+    poses = readCSV()
 
-robot_poses, camera_poses = processPoses(poses, ROBOT_CAM, show_graph=False, limit=50)
+    robot_poses, camera_poses = processPoses(
+        poses, ROBOT_CAM, show_graph=False, limit=50
+    )
 
-cam2world = [p.invert for p in camera_poses]
+    cam2world = [p.invert for p in camera_poses]
 
-base2world, grip2cam = calibrate(robot_poses, cam2world)
+    base2world, grip2cam = calibrate(robot_poses, cam2world)
 
-metrics = evaluate(robot_poses, camera_poses, base2world, grip2cam, report=False)
+    metrics = evaluate(robot_poses, camera_poses, base2world, grip2cam, report=False)
 
-error = np.mean(metrics["total"])
+    error = np.mean(metrics["total"])
 
-print(f"Error is {error}")
+    print(f"Error is {error}")
 
-saveCalibration(base2world, grip2cam, CALIBRATION_FOLDER + "/calibration2.npz")
+    saveCalibration(
+        base2world, grip2cam, CALIBRATION_FOLDER + "/calibration_logitec.npz"
+    )

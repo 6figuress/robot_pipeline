@@ -1,13 +1,12 @@
 import csv
 from math import radians
-from URBasic import ISCoin, CameraSettings, Joint6D
-from URBasic.devices.camera_settings import FocusSettings
+from urbasic import ISCoin, CameraSettings
 
 import cv2 as cv
 from cv2.typing import Vec6f
 import numpy as np
 
-from camera_sync.camera import Camera
+from camera_sync import Camera
 
 import os
 import time
