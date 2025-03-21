@@ -9,10 +9,10 @@ import numpy as np
 
 from ur_ikfast.ur_kinematics import URKinematics
 
+from camera_sync import vizPoses
 from camera_sync.referential import Transform
 from camera_sync.camera import Camera
 from camera_sync.aruco import processAruco, getArucosFromPaper
-from camera_sync.plotting import vizPoses
 from takePicture import PICS_PATH, READING_PATH
 
 
@@ -90,10 +90,12 @@ def processPoses(
             # Error is too big, we won't take the pose for calibration
             continue
 
-        mat = kinematic.forward(angles, rotation_type="matrix")
+        res = kinematic.forward(angles)
 
         robot_poses.append(
-            Transform.fromRotationMatrix(rot_mat=mat[:3, :3], tvec=mat[:3, 3] * 1000)
+            Transform.fromQuaternion(
+                quat=res[3:], tvec=res[:3] * 1000, scalar_first=False
+            )
         )
         # TODO: Here is a conversion from mm to M -> don't forget it !!!
         camera_poses.append(Transform.fromRodrigues(rvec=cam_rvec, tvec=cam_tvec))
@@ -146,20 +148,23 @@ def calibrate(base2gripper: list[Transform], world2camera: list[Transform]):
         method=cv.CALIB_ROBOT_WORLD_HAND_EYE_SHAH,
     )
 
-    base2world = Transform.fromRotationMatrix(rot_mat=r_base2world, tvec=t_base2world)
-    grip2cam = Transform.fromRotationMatrix(rot_mat=r_grip2cam, tvec=t_grip2cam)
+    base2world: Transform = Transform.fromRotationMatrix(
+        rot_mat=r_base2world, tvec=t_base2world
+    )
+    grip2cam: Transform = Transform.fromRotationMatrix(
+        rot_mat=r_grip2cam, tvec=t_grip2cam
+    )
 
     return base2world, grip2cam
 
 
 def evaluate(
+    world2base: Transform,
     base2gripper: list[Transform],
-    world2camera: list[Transform],
-    base2world: Transform,
     grip2cam: Transform,
+    camera2world: list[Transform],
     report: bool = True,
 ):
-    world2base = base2world.invert
 
     metrics = {
         "total": [],
@@ -176,8 +181,8 @@ def evaluate(
 
     log("============= REPORT =============")
 
-    for j, (r, c) in enumerate(zip(base2gripper, world2camera)):
-        total = world2base.combine(r).combine(grip2cam).combine(c)
+    for j, (b2g, c2w) in enumerate(zip(base2gripper, camera2world)):
+        total: Transform = world2base.combine(b2g).combine(grip2cam).combine(c2w)
 
         point: Vec3f = np.array([0.0, 0.0, 0.0])
 
@@ -228,8 +233,6 @@ def evaluate(
         log(f"        Y : {metrics['y'][-1]}")
         log(f"        Z : {metrics['z'][-1]}")
 
-        total_transf = world2base.combine(r).combine(grip2cam).combine(c)
-
     for k in metrics.keys():
         metrics[k] = np.array(metrics[k])
 
@@ -261,12 +264,47 @@ if __name__ == "__main__":
 
     base2world, grip2cam = calibrate(robot_poses, cam2world)
 
-    metrics = evaluate(robot_poses, camera_poses, base2world, grip2cam, report=False)
+    # TODO: Do not forgetThis is the inversion
+    old = Transform(base2world.transf_mat)
+
+    base2world = grip2cam
+
+    grip2cam = old
+
+    # End
+
+    def showCameraPosition():
+        gripInWorld = robot_poses[0].combine(base2world)
+
+        cam_guessed = grip2cam.invert.combine(robot_poses[0]).combine(base2world)
+
+        total = (
+            camera_poses[0]
+            .combine(grip2cam.invert)
+            .combine(robot_poses[0])
+            .combine(base2world)
+        )
+
+        total2 = (
+            base2world.invert.combine(robot_poses[0].invert)
+            .combine(grip2cam)
+            .combine(camera_poses[0].invert)
+        )
+
+        # vizPoses([gripInWorld, base2world, cam2world[0], cam_guessed])
+
+    metrics = evaluate(
+        base2world.invert,
+        [p.invert for p in robot_poses],
+        grip2cam,
+        cam2world,
+        report=True,
+    )
 
     error = np.mean(metrics["total"])
 
     print(f"Error is {error}")
 
     saveCalibration(
-        base2world, grip2cam, CALIBRATION_FOLDER + "/calibration_logitec.npz"
+        base2world, grip2cam, CALIBRATION_FOLDER + "/calibration_logitec_new.npz"
     )

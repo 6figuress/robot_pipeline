@@ -1,12 +1,12 @@
 import csv
 from math import radians
-from urbasic import ISCoin, CameraSettings
+from urbasic import ISCoin, CameraSettings, FocusSettings
 
 import cv2 as cv
 from cv2.typing import Vec6f
 import numpy as np
 
-from camera_sync import Camera
+from camera_sync import Camera, getArucosFromPaper, processAruco
 
 import os
 import time
@@ -140,9 +140,11 @@ def readPosesFromCSV(path: str) -> np.ndarray[Vec6f]:
 if __name__ == "__main__":
     # TODO: We can try to set a closer focus distance
 
-    cam = Camera("Logitec_robot", 2, focus=10, resolution=(1920, 1080))
+    cam = Camera("Logitec_robot", 0, focus=10, resolution=(1920, 1080))
 
     iscoin = ISCoin(host="10.30.5.158", opened_gripper_size_mm=40)
+
+    arucos = getArucosFromPaper(2)
 
     time.sleep(1)
 
@@ -159,8 +161,13 @@ if __name__ == "__main__":
         elif key == ord("s") or key == ord("c"):
             filename = takePicCamera(cam, "./pics")
 
+            _, _, _, metrics = processAruco(
+                arucos.values(), [], cam, frame, accept_none=True, metrics=True
+            )
+
             savePose(iscoin, filename)
             print(f"Picture n°{i} taken and pose saved")
+            print(f"MAE is : {metrics['PnP']['MAE']}")
             i += 1
 
     # robot_cam = Camera("robot", -1, focus=500, resolution=(640, 480))
