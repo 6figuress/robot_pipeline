@@ -1,40 +1,15 @@
-import numpy as np
-from ur_ikfast.ur_kinematics import URKinematics
-
-from calibrate import loadCalibration
 from camera_sync import Transform, vizPoses
 
-import matplotlib.pyplot as plt
-
-base2world, grip2cam = loadCalibration("./calibrations/calibration_logitec.npz")
+base_pose = Transform.fromQuaternion(quat=[1, 0, 0, 1], tvec=[5, 5, 0])
 
 
-# Those value are written in the technical plan of the duck support
-duck2world: Transform = Transform.fromRodrigues(
-    rvec=[0.0, 0.0, 0.0], tvec=[117.57, -152.57, 111.0]
-)
-
-duck2robot: Transform = duck2world.combine(base2world.invert)
-
-duck_origin = [0.0, 150.0, 0.0]
-
-duck_origin_robot_frame = duck2robot.apply(duck_origin)
-
-kine = URKinematics("ur3e")
+ref_change = Transform.fromQuaternion(quat=[1, 0, 0, 0], tvec=[10, 10, 0])
 
 
-position = [
-    duck_origin_robot_frame[0],
-    duck_origin_robot_frame[1],
-    duck_origin_robot_frame[2],
-    1,
-    0,
-    0,
-    0,
-]
+combined = base_pose.combine(ref_change)
+combined2 = ref_change.combine(base_pose)
+vizPoses([combined2], limits=(-10, 10), length=2)
 
+import ipdb
 
-pose = kine.inverse(position)
-
-
-vizPoses([duck2world])
+ipdb.set_trace()

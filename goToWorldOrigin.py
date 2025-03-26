@@ -15,6 +15,16 @@ worldOrigin_robotFrame = base2world.invert.apply(worldOrigin)
 
 kine = URKinematics("ur3e")
 
-pose: list[float] = [worldOrigin_robotFrame[0] * 0.001, worldOrigin_robotFrame[1] * 0.001, worldOrigin_robotFrame[2] * 0.001 + 0.3,  0,  0.999,  0.0, 0.0]
+pose: list[float] = [
+    worldOrigin_robotFrame[0] * 0.001,
+    worldOrigin_robotFrame[1] * 0.001,
+    worldOrigin_robotFrame[2] * 0.001 + 0.2,
+    0,
+    0.999,
+    0.0,
+    0.0,
+]
 
 angles = kine.inverse(pose, all_solutions=True)
+
+print(angles)

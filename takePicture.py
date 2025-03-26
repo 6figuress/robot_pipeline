@@ -1,6 +1,9 @@
 import csv
 from math import radians
-from urbasic import ISCoin, CameraSettings, FocusSettings
+from urbasic import ISCoin, CameraSettings, FocusSettings, Joint6D
+
+from ur_ikfast.ur_kinematics import generate_trajectory
+
 
 import cv2 as cv
 from cv2.typing import Vec6f
@@ -137,7 +140,35 @@ def readPosesFromCSV(path: str) -> np.ndarray[Vec6f]:
     return angles
 
 
+def startAuto(filePath, interpolation_n=5):
+    from calibrate import readCSV
+
+    poses = readCSV(filePath)
+
+    poses: list[Vec6f] = [p[0] for p in poses]
+
+    final_poses = []
+
+    for i in range(0, len(poses), 2):
+        if len(poses) > i + 1:
+            start = poses[i]
+            end = poses[i + 1]
+
+            for j in range(interpolation_n):
+                final_poses.append(start + (end - start) * (j / interpolation_n))
+
+    final_poses = np.array(final_poses)
+
+    generate_trajectory(final_poses, "traj.json")
+
+    import ipdb
+
+    ipdb.set_trace()
+
+
 if __name__ == "__main__":
+    startAuto("./readings/reading.csv")
+
     # TODO: We can try to set a closer focus distance
 
     cam = Camera("Logitec_robot", 0, focus=10, resolution=(1920, 1080))

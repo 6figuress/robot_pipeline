@@ -25,8 +25,8 @@ CALIBRATION_FOLDER = "calibrations"
 ROBOT_CAM = Camera("Logitec_robot", -1, focus=10, resolution=(1920, 1080))
 
 
-def readCSV() -> list[tuple[Vec6f, MatLike]]:
-    with open(READING_PATH, "r") as file:
+def readCSV(filePath=READING_PATH) -> list[tuple[Vec6f, MatLike]]:
+    with open(filePath, "r") as file:
         csv_reader = csv.reader(file)
         header = next(csv_reader, None)
 
