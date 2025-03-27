@@ -118,7 +118,7 @@ def takePicCamera(cam: Camera, folder: str) -> str:
 
     pic = cam.takePic()
     cv.imwrite(os.path.join(folder, f"{timestamp}.png"), pic)
-    return f"{timestamp}.png"
+    return f"{timestamp}.png", pic
 
 
 def readPosesFromFile(filepath: str) -> np.ndarray[Vec6f]:
@@ -166,19 +166,52 @@ def startAuto(filePath, interpolation_n=5):
     ipdb.set_trace()
 
 
-if __name__ == "__main__":
-    startAuto("./readings/reading.csv")
+def autoFromFile(path, cam, iscoin):
+    i = 0
 
+    def readFromJson():
+        points = []
+        with open(path, "r") as file:
+            data = json.load(file)["modTraj"]
+            for i in data:
+                points.append(i["positions"])
+        return points
+
+    angles = readFromJson()
+
+    acc = radians(10)
+
+    speed = radians(15)
+
+    for angle in angles:
+        iscoin.robot_control.movej(Joint6D.createFromRadList(angle), a=acc, v=speed)
+        # TODO: Check if a delay is needed or not -> can display the stream in paralel to see if robot need time for pose to settle
+        time.sleep(0.2)
+        filename, frame = takePicCamera(cam, "./pics")
+        res = processAruco(
+            arucos.values(), [], cam, frame, accept_none=True, metrics=True
+        )
+        if not res:
+            print("No aruco found for pose n°", i)
+            continue
+        _, _, _, metrics = res
+
+        savePose(iscoin, filename)
+        print(f"Picture n°{i} taken and pose saved")
+        print(f"MAE is : {metrics['PnP']['MAE']}")
+        i += 1
+
+
+if __name__ == "__main__":
     # TODO: We can try to set a closer focus distance
 
-    cam = Camera("Logitec_robot", 0, focus=10, resolution=(1920, 1080))
+    cam = Camera("Logitec_robot", 2, focus=10, resolution=(1920, 1080))
 
     iscoin = ISCoin(host="10.30.5.158", opened_gripper_size_mm=40)
 
-    arucos = getArucosFromPaper(2)
+    arucos = getArucosFromPaper(4)
 
-    time.sleep(1)
-
+    # autoFromFile("./traj1.json")
     i = 0
     while True:
         ret, frame = cam.captureStream.read()
@@ -190,7 +223,7 @@ if __name__ == "__main__":
         if key == ord("q"):
             break
         elif key == ord("s") or key == ord("c"):
-            filename = takePicCamera(cam, "./pics")
+            filename, frame = takePicCamera(cam, "./pics")
 
             _, _, _, metrics = processAruco(
                 arucos.values(), [], cam, frame, accept_none=True, metrics=True
@@ -200,25 +233,3 @@ if __name__ == "__main__":
             print(f"Picture n°{i} taken and pose saved")
             print(f"MAE is : {metrics['PnP']['MAE']}")
             i += 1
-
-    # robot_cam = Camera("robot", -1, focus=500, resolution=(640, 480))
-
-    # startup()
-
-    # setFocus(iscoin, robot_cam)
-
-    # time.sleep(2)
-
-    # showStream(iscoin)
-
-    # angles = readPosesFromFile("")
-
-    # acc = radians(120)
-
-    # speed = radians(50)
-
-    # for angle in angles:
-    #     iscoin.robot_control.movej(Joint6D.createFromRadList(angle), a=acc, v=speed)
-    #     # TODO: Check if a delay is needed or not -> can display the stream in paralel to see if robot need time for pose to settle
-    #     time.sleep(0.5)
-    #     savePose()

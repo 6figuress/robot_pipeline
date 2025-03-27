@@ -44,12 +44,6 @@ def readCSV(filePath=READING_PATH) -> list[tuple[Vec6f, MatLike]]:
     return poses
 
 
-def xzPlaneSymetry(t: Transform) -> Transform:
-    s = np.eye(4)
-    s[1, 1] = -1
-    return Transform(transf_mat=s @ t.transf_mat)
-
-
 def processPoses(
     poses: list[tuple[Vec6f, MatLike]],
     camera: Camera,
@@ -63,7 +57,7 @@ def processPoses(
 
     kinematic = URKinematics("ur3e")
 
-    arucos = getArucosFromPaper(2).values()
+    arucos = getArucosFromPaper(4).values()
 
     x_RMSE = []
     y_MAE = []
@@ -165,7 +159,6 @@ def evaluate(
     camera2world: list[Transform],
     report: bool = True,
 ):
-
     metrics = {
         "total": [],
         "x": [],
@@ -195,7 +188,7 @@ def evaluate(
         aruco_corners = []
         transformed_points = []
 
-        for a in getArucosFromPaper(2).values():
+        for a in getArucosFromPaper(4).values():
             for arucoCorner in a.corners:
                 aruco_corners.append(arucoCorner.coords)
                 transformed_points.append(total.apply(arucoCorner.coords))
@@ -257,8 +250,10 @@ if __name__ == "__main__":
     poses = readCSV()
 
     robot_poses, camera_poses = processPoses(
-        poses, ROBOT_CAM, show_graph=False, limit=50
+        poses, ROBOT_CAM, show_graph=True, limit=50, RMSE_treshold=4.5, MAE_treshold=4.5
     )
+
+    vizPoses(robot_poses)
 
     cam2world = [p.invert for p in camera_poses]
 
@@ -272,6 +267,9 @@ if __name__ == "__main__":
     grip2cam = old
 
     # End
+    import ipdb
+
+    ipdb.set_trace()
 
     def showCameraPosition():
         gripInWorld = robot_poses[0].combine(base2world)
@@ -291,7 +289,9 @@ if __name__ == "__main__":
             .combine(camera_poses[0].invert)
         )
 
-        # vizPoses([gripInWorld, base2world, cam2world[0], cam_guessed])
+        vizPoses([gripInWorld, base2world, cam2world[0], cam_guessed])
+
+    showCameraPosition()
 
     metrics = evaluate(
         base2world.invert,
@@ -306,5 +306,5 @@ if __name__ == "__main__":
     print(f"Error is {error}")
 
     saveCalibration(
-        base2world, grip2cam, CALIBRATION_FOLDER + "/calibration_logitec_new.npz"
+        base2world, grip2cam, CALIBRATION_FOLDER + "/calibration_logitec_with_stand.npz"
     )
