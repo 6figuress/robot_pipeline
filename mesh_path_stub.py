@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from functools import reduce
+from math import cos, pi, sin
 
 from camera_sync import Transform
 
@@ -48,11 +49,11 @@ class MeshPathStub:
         """
         self.cube_size: float = cube_size
 
-    def line_on_cube(self, n_points: int = 50) -> list[Sample]:
+    def line_on_cube(self, n_points: int = 50) -> list[Transform]:
         """
         "Draws" a straight line on two adjacent faces of a cube.
 
-        The cube of 8cm side is assumed to be centered at its origin (center of downwards face).
+        The cube is assumed to be centered at its origin (center of downwards face).
 
         Parameters
         ----------
@@ -60,9 +61,10 @@ class MeshPathStub:
 
         Returns
         -------
-                list[Sample]: The list of samples
+                list[Transform]: The list of samples
 
         """
+        # constants used for the line generation
         cube_size: float = self.cube_size
         cube_half_size: float = cube_size / 2.0
 
@@ -77,7 +79,7 @@ class MeshPathStub:
 
         # start at the center of the upwards face (origin)
         # and interpolate our way to the halfway position
-        samples: list[Sample] = reduce(
+        samples: list[Transform] = reduce(
             lambda res, i: res
             + [
                 Sample(
@@ -90,7 +92,7 @@ class MeshPathStub:
                         origin_position[2],
                     ],
                     angle=upwards_pen_quaternion,
-                )
+                ).to_transform()
             ],
             range(half_line_n_points),
             [],
@@ -111,10 +113,51 @@ class MeshPathStub:
                         / (half_line_n_points - 1),
                     ],
                     angle=against_face_pen_quaternion,
-                )
+                ).to_transform()
             ],
             range(half_line_n_points),
             [],
         )
 
         return samples
+
+    def circle_on_cube(self, n_points: int = 50) -> list[Transform]:
+        """
+        "Draws" a circle on the upwards face of a cube.
+
+        The cube of is assumed to be centered at its origin (center of downwards face).
+
+        Parameters
+        ----------
+                n_points (int): The number of points to generate on the circle
+
+        Returns
+        -------
+                list[Transform]: The list of samples
+
+        """
+        # constants used for the circle generation
+        # the circle is centered at the center of
+        # the upwards face
+        cube_size: float = self.cube_size
+        circle_radius: float = cube_size * 0.4
+        whole_revolution: float = 2.0 * pi
+
+        upwards_pen_quaternion: list[float] = [0.0, 1.0, 0.0, 0.0]
+
+        # compute the position of the points on the circle
+        return reduce(
+            lambda res, angle: res
+            + [
+                Sample(
+                    position=[
+                        cos(angle) * circle_radius,
+                        sin(angle) * circle_radius,
+                        cube_size,
+                    ],
+                    angle=upwards_pen_quaternion,
+                ).to_transform()
+            ],
+            map(lambda i: i * whole_revolution / n_points, range(n_points)),
+            [],
+        )

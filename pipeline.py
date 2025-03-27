@@ -39,9 +39,7 @@ from mesh_path_stub import MeshPathStub
 # ]
 
 stub: MeshPathStub = MeshPathStub()
-trajectories: list[Transform] = [
-    sample.to_transform() for sample in stub.line_on_cube()
-]
+trajectories: list[Transform] = stub.circle_on_cube()
 
 vizPoses(trajectories, limits=[0, 100])
 
