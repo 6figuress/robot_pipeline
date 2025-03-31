@@ -10,7 +10,7 @@ from calibrate import loadCalibration
 from camera_sync import Transform, vizPoses
 import trimesh
 from datetime import datetime
-
+import time
 import os
 import re
 
@@ -60,7 +60,8 @@ def get_paths(mesh, name):
         tube_length=5e1, diameter=2e-2, cone_height=1e-2, step_angle=36, num_vectors=12
     )
 
-    res = mesh_to_paths(mesh=mesh, n_samples=50_000, max_dist=0.005, home_point=((0, 0, 0.1), (0, 0, -1)), verbose=True, ditherer=dither, path_analyzer=path_analyzer, bbox_scale=1.1, nz_threshold=-1.0, thickness=0.002)
+    res = mesh_to_paths(mesh=mesh, n_samples=50_000, max_dist=0.0012, home_point=((0, 0, 0.1), (0, 0, -1)), verbose=True, ditherer=dither, path_analyzer=path_analyzer, bbox_scale=1, nz_threshold=-1.0, thickness=0.0)
+    # res = mesh_to_paths(mesh=mesh, n_samples=50_000, max_dist=0.008, home_point=((0, 0, 0.1), (0, 0, -1)), verbose=True, ditherer=dither, path_analyzer=path_analyzer, bbox_scale=1.1, nz_threshold=-1.0, thickness=0.004)
 
     with open(f"{name}", "w") as f:
         json.dump(res, f, indent=4, cls=NumpyEncoder)
@@ -96,13 +97,17 @@ def plot_paths_process(mesh, res):
 # ------------------ MAIN ------------------
 
 # folder_name = "cube"
-folder_name = "cube_isc_top"
+# folder_name = "cube_isc_top"
+# folder_name = "cube_isc_top_filled"
+# folder_name = "cube_isc_side"
+folder_name = "duck_isc_filled"
 
 timestamp = datetime.now().strftime("%d.%m.%Y_%Hh%Mm%Ss")
 
 
 folder_path = f"./painting_models/{folder_name}"
-mesh_file_path = f"{folder_path}/cube_8mm.obj"
+mesh_file_path = f"{folder_path}/duck_isc.obj"
+# mesh_file_path = f"{folder_path}/cube_8mm.obj"
 
 mesh = load_mesh(mesh_file_path)
 
@@ -153,15 +158,13 @@ transformed = []
 for i in range(len(traj_transf)):
     transformed.append(traj_transf[i].combine(duck2robot))
 
-# vizPoses(transformed)
-
 kine = URKinematics("ur3e_pen_final_2")
 
 multi = MultiURKinematics(kine)
 
+start_IK = time.time()
 angles = multi.inverse_optimal([t.kine_pose for t in transformed])
-
-# print(angles)
+print(f"IK took {time.time() - start_IK} seconds")
 
 number_angles = len(angles.trajectory)
 
@@ -179,12 +182,16 @@ print(f"Loading {latest_angles} angles file")
 with open(angles_file_path, "r") as f:
     angles = json.load(f)
 
-print(f"Number of points: {number_points}, Number of angles: {number_angles}, Ratio: {number_angles/number_points}")
+ratio = number_angles / number_points
+print(f"Number of points: {number_points}, Number of angles: {number_angles}, Ratio: {ratio}")
 
 trajectory_file_path = f"{folder_path}/trajectory_{timestamp}.json"
 
-generate_trajectory(angles, trajectory_file_path)
-print(f"Trajectory saved to {trajectory_file_path}")
+if ratio >= 0.8 :
+    generate_trajectory(angles, trajectory_file_path)
+    print(f"Trajectory saved to {trajectory_file_path}")
+else:
+    print("Ratio is too low, not generating trajectory")
 
 print("Waiting for plot process to finish")
 p.join()
