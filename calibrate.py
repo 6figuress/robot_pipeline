@@ -55,7 +55,7 @@ def processPoses(
     robot_poses: list[Transform] = []
     camera_poses: list[Transform] = []
 
-    kinematic = URKinematics("ur3e")
+    kinematic = URKinematics("ur3e_pen_final_2")
 
     arucos = getArucosFromPaper(4).values()
 
