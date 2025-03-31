@@ -1,42 +1,34 @@
-from duck_factory.mesh_to_paths import mesh_to_paths, load_mesh
-
 import json
+from camera_sync import Transform, vizPoses
 import numpy as np
 from ur_ikfast.ur_kinematics import URKinematics, MultiURKinematics
 
+
 from calibrate import loadCalibration
-from camera_sync import Transform, vizPoses
+from mesh_path_stub import MeshPathStub
+import os
 
 # mesh = load_mesh("./painting_models/cube/cube_8mm.obj")
 
 # res = mesh_to_paths(mesh, n_samples=50000, verbose=True)
 
+res = []
 
-# traj = []
 
-# traj_transf = []
+traj_transf = []
 
-# For now, taking only white trajectory
 # for r in res:
-#     if r[0] == (255, 255, 255, 255):
-#         for pose in r[1]:
-#             traj_transf.append(
-#                 Transform.fromQuaternion(
-#                     quat=pose[1], tvec=np.array(pose[0]) * 1000, scalar_first=False
-#                 )
+#     for pose in r[1]:
+#         traj_transf.append(
+#             Transform.fromQuaternion(
+#                 quat=pose[1], tvec=np.array(pose[0]) * 1000, scalar_first=False
 #             )
+#         )
 
 
-traj_transf: list[Transform] = [
-    Transform.fromQuaternion(quat=[0.0, 1.0, 0.0, 0.0], tvec=[-20.0, 0.0, 400 + 80.0]),
-    Transform.fromQuaternion(quat=[0.0, 1.0, 0.0, 0.0], tvec=[-10.0, 0.0, 400 + 80.0]),
-    Transform.fromQuaternion(quat=[0.0, 1.0, 0.0, 0.0], tvec=[0.0, 0.0, 400 + 80.0]),
-    Transform.fromQuaternion(quat=[0.0, 1.0, 0.0, 0.0], tvec=[10.0, 0.0, 400 + 80.0]),
-    Transform.fromQuaternion(quat=[0.0, 1.0, 0.0, 0.0], tvec=[20.0, 0.0, 400 + 80.0]),
-]
+stub: MeshPathStub = MeshPathStub()
 
-# vizPoses(traj_transf, limits=(-50, 50), length=5)
-
+trajectories: list[Transform] = traj_transf  # stub.line_on_cube(n_points=10)
 
 base2world, grip2cam = loadCalibration(
     "./calibrations/calibration_logitec_with_stand.npz"
@@ -48,33 +40,45 @@ duck2world: Transform = Transform.fromRodrigues(
     rvec=[0.0, 0.0, 0.0], tvec=[112.57, -147.57, 111.0]
 )
 
-# TODO: Remove this line !!!!
-# duck2world = Transform.fromRodrigues(
-#     rvec=[0.0, 0.0, 0.0], tvec=[117.57, -152.57, 250.0]
-# )
-
 duck2robot = duck2world.combine(base2world.invert)
 
 
 transformed = []
 
-for i in range(len(traj_transf)):
-    transformed.append(traj_transf[i].combine(duck2robot))
+for i in range(len(trajectories)):
+    transformed.append(trajectories[i].combine(duck2robot))
 
 
-# vizPoses(transformed)
-
-kine = URKinematics("ur3e_with_pen_final")
+kine = URKinematics("ur3e_pen_final")
 
 multi = MultiURKinematics(kine)
 
-
-import ipdb
-
-ipdb.set_trace()
-
 angles = multi.inverse_optimal([t.kine_pose for t in transformed])
 
-angles.trajectory = np.array(angles.trajectory)
 
-print(json.dumps(angles.trajectory.tolist()))
+def generate_trajectory_file(data, filename="./trajectories/trajectory.json"):
+    modTraj = []
+    time_step = 2  # Incrément du temps
+    time = 4
+
+    for arr in data:
+        positions = [round(float(x), 4) if abs(x) >= 1e-4 else 0.0 for x in arr]
+        velocities = [0.0] * 6  # Vélocités à zéro
+        modTraj.append(
+            {
+                "positions": positions,
+                "velocities": velocities,
+                "time_from_start": [time, 0],
+            }
+        )
+        time += time_step
+
+    with open(filename, "w") as f:
+        json.dump({"modTraj": modTraj}, f, indent=4)
+
+    print(f"Trajectory file '{filename}' generated successfully.")
+
+
+# generate_trajectory_file(angles.trajectory)
+
+print(json.dumps(angles.trajectory))
