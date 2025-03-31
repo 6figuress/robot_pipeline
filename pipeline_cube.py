@@ -9,6 +9,13 @@ from ur_ikfast.ur_kinematics import URKinematics, MultiURKinematics, generate_tr
 from calibrate import loadCalibration
 from camera_sync import Transform, vizPoses
 import trimesh
+from datetime import datetime
+
+import os
+import re
+
+from multiprocessing import Process
+
 
 def modify_mesh_position(mesh):
     mesh.vertices = np.column_stack(
@@ -53,14 +60,45 @@ def get_paths(mesh, name):
         tube_length=5e1, diameter=2e-2, cone_height=1e-2, step_angle=36, num_vectors=12
     )
 
-    res = mesh_to_paths(mesh=mesh, n_samples=50_000, max_dist=0.0024, home_point=((0, 0, 0.1), (0, 0, -1)), verbose=True, ditherer=dither, path_analyzer=path_analyzer, bbox_scale=1.5, nz_threshold=-1.0)
+    res = mesh_to_paths(mesh=mesh, n_samples=50_000, max_dist=0.005, home_point=((0, 0, 0.1), (0, 0, -1)), verbose=True, ditherer=dither, path_analyzer=path_analyzer, bbox_scale=1.1, nz_threshold=-1.0, thickness=0.002)
 
     with open(f"{name}", "w") as f:
         json.dump(res, f, indent=4, cls=NumpyEncoder)
+    print(f"Paths saved to {name}")
 
+def load_latest_timestamped_file(folder_path, prefix):
+    """
+    Finds the latest file in `folder_path` that starts with `prefix`
+    and ends with `.json`, using Swiss timestamp format in the filename.
+    """
+    pattern = re.compile(rf"{re.escape(prefix)}_(\d{{2}}\.\d{{2}}\.\d{{4}}_\d{{2}}h\d{{2}}m\d{{2}}s)\.json")
+
+    candidates = []
+    for filename in os.listdir(folder_path):
+        match = pattern.match(filename)
+        if match:
+            timestamp_str = match.group(1)
+            try:
+                timestamp = datetime.strptime(timestamp_str, "%d.%m.%Y_%Hh%Mm%Ss")
+                candidates.append((timestamp, filename))
+            except ValueError:
+                continue
+
+    if not candidates:
+        return None
+
+    latest = max(candidates)[1]
+    return os.path.join(folder_path, latest)
+
+def plot_paths_process(mesh, res):
+    from duck_factory.mesh_to_paths import plot_paths
+    plot_paths(mesh, res)
 # ------------------ MAIN ------------------
 
-folder_name = "cube"
+# folder_name = "cube"
+folder_name = "cube_isc_top"
+
+timestamp = datetime.now().strftime("%d.%m.%Y_%Hh%Mm%Ss")
 
 
 folder_path = f"./painting_models/{folder_name}"
@@ -71,14 +109,17 @@ mesh = load_mesh(mesh_file_path)
 modify_mesh_position(mesh)
  
 
-paths_file_path = f"{folder_path}/paths.json"
+paths_file_path = f"{folder_path}/paths_{timestamp}.json"
 
 get_paths(mesh, paths_file_path)
 
-with open(paths_file_path, "r") as f:
+latest_path = load_latest_timestamped_file(folder_path, "paths")
+print(f"Loading {latest_path} path file")
+with open(latest_path, "r") as f:
     res = json.load(f)
 
-plot_paths(mesh, res)
+p = Process(target=plot_paths_process, args=(mesh, res))
+p.start()
 
 number_points = len(res[0][1])
 
@@ -124,8 +165,26 @@ angles = multi.inverse_optimal([t.kine_pose for t in transformed])
 
 number_angles = len(angles.trajectory)
 
+angles_file_path = f"{folder_path}/angles_{timestamp}.json"
+
+if number_angles == 0:
+    print("No angles found, quitting")
+    exit(1)
+else:
+    with open(angles_file_path, "w") as f:
+        json.dump(angles.trajectory, f, indent=4, cls=NumpyEncoder)
+
+latest_angles = load_latest_timestamped_file(folder_path, "angles")
+print(f"Loading {latest_angles} angles file")
+with open(angles_file_path, "r") as f:
+    angles = json.load(f)
+
 print(f"Number of points: {number_points}, Number of angles: {number_angles}, Ratio: {number_angles/number_points}")
 
-trajectory_file_path = f"{folder_path}/trajectory.json"
+trajectory_file_path = f"{folder_path}/trajectory_{timestamp}.json"
 
 generate_trajectory(angles, trajectory_file_path)
+print(f"Trajectory saved to {trajectory_file_path}")
+
+print("Waiting for plot process to finish")
+p.join()
