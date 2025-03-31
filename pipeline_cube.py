@@ -1,4 +1,4 @@
-from duck_factory.mesh_to_paths import mesh_to_paths, load_mesh
+from duck_factory.mesh_to_paths import mesh_to_paths, load_mesh, plot_paths
 
 from duck_factory.dither_class import Dither
 from duck_factory.reachable_points import PathAnalyzer
@@ -46,22 +46,39 @@ class NumpyEncoder(json.JSONEncoder):
         if isinstance(obj, np.ndarray):
             return obj.tolist()
         return super().default(obj)
+    
+def get_paths(mesh, name):
+    dither = Dither(factor=1.0, algorithm="SimplePalette", nc=2)
+    path_analyzer = PathAnalyzer(
+        tube_length=5e1, diameter=2e-2, cone_height=1e-2, step_angle=36, num_vectors=12
+    )
 
-mesh = load_mesh("./painting_models/cube/cube_8mm.obj")
+    res = mesh_to_paths(mesh=mesh, n_samples=50_000, max_dist=0.0024, home_point=((0, 0, 0.1), (0, 0, -1)), verbose=True, ditherer=dither, path_analyzer=path_analyzer, bbox_scale=1.5, nz_threshold=-1.0)
+
+    with open(f"{name}", "w") as f:
+        json.dump(res, f, indent=4, cls=NumpyEncoder)
+
+# ------------------ MAIN ------------------
+
+folder_name = "cube"
+
+
+folder_path = f"./painting_models/{folder_name}"
+mesh_file_path = f"{folder_path}/cube_8mm.obj"
+
+mesh = load_mesh(mesh_file_path)
 
 modify_mesh_position(mesh)
  
-dither = Dither(factor=1.0, algorithm="SimplePalette", nc=2)
-path_analyzer = PathAnalyzer(
-    tube_length=5e1, diameter=2e-2, cone_height=1e-2, step_angle=36, num_vectors=12
-)
 
-res = mesh_to_paths(mesh=mesh, n_samples=50_000, max_dist=0.0024, home_point=((0, 0, 0.1), (0, 0, -1)), verbose=True, ditherer=dither, path_analyzer=path_analyzer, bbox_scale=1.5, nz_threshold=-1.0)
+paths_file_path = f"{folder_path}/paths.json"
 
-with open("cube_paths.json", "w") as f:
-    json.dump(res, f, indent=4, cls=NumpyEncoder)
-with open("cube_paths.json", "r") as f:
+get_paths(mesh, paths_file_path)
+
+with open(paths_file_path, "r") as f:
     res = json.load(f)
+
+plot_paths(mesh, res)
 
 number_points = len(res[0][1])
 
@@ -109,4 +126,6 @@ number_angles = len(angles.trajectory)
 
 print(f"Number of points: {number_points}, Number of angles: {number_angles}, Ratio: {number_angles/number_points}")
 
-generate_trajectory(angles, "duck_trajectory.json")
+trajectory_file_path = f"{folder_path}/trajectory.json"
+
+generate_trajectory(angles, trajectory_file_path)
