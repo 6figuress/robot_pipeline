@@ -14,19 +14,18 @@ base2world, grip2cam = loadCalibration(
 worldOrigin = arucos[47].corners[0].coords
 
 duck2world: Transform = Transform.fromRodrigues(
-    rvec=[0.0, 0.0, 0.0], tvec=[115.0, -294 / 2, 111.0]
+    rvec=[0.0, 0.0, 0.0], tvec=[0.57, -147.57, 111.0]
 )
-
 duck2robot = duck2world.combine(base2world.invert)
 
-worldOrigin_robotFrame = base2world.invert.apply([0, 0, 0])
+worldOrigin_robotFrame = base2world.invert.apply(worldOrigin)
 
-kine = URKinematics("ur3e")
+kine = URKinematics("ur3e_pen_final_2")
 
 pose: list[float] = [
     worldOrigin_robotFrame[0] * 0.001,
     worldOrigin_robotFrame[1] * 0.001,
-    worldOrigin_robotFrame[2] * 0.001 + 0.2,
+    worldOrigin_robotFrame[2] * 0.001,
     0,
     0.999,
     0.0,
