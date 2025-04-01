@@ -18,7 +18,7 @@ def generateTrajectoryFromPoses(poses, filename="trajectory.json", graph=False, 
         - poses A list of pose [x, y, z, qx, qy, qz, qw]
     """
 
-    kine = URKinematics("ur3e_pen_final")
+    kine = URKinematics("ur3e_pen_final_2")
 
     multi = MultiURKinematics(kine)
 
@@ -26,7 +26,7 @@ def generateTrajectoryFromPoses(poses, filename="trajectory.json", graph=False, 
 
     for p in poses:
         transf.append(
-            Transform.fromQuaternion(quat=p[3:], tvec=p[:3], scalar_first=False)
+            Transform.fromQuaternion(quat=p[3:], tvec=np.array(p[:3])* 1000, scalar_first=False)
         )
 
     # Those value are written in the technical plan of the duck support
@@ -38,18 +38,8 @@ def generateTrajectoryFromPoses(poses, filename="trajectory.json", graph=False, 
         "./calibrations/calibration_logitec_with_stand.npz"
     )
 
-    world2base = Transform.fromRodrigues(
-        rvec=base2world.invert.rvec,
-        tvec=[
-            base2world.invert.tvec[0] + 300,
-            base2world.invert.tvec[1],
-            base2world.invert.tvec[2],
-        ],
-    )
+    world2base = base2world.invert
 
-    test = Transform.fromRodrigues(rvec=[0.0, 0.0, math.pi / 4], tvec=[0.0, 0.0, 0.0])
-
-    world2base = world2base.combine(test)
 
     duck2robot = duck2world.combine(world2base)
 
