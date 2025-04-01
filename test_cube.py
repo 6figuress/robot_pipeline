@@ -96,12 +96,16 @@ def plot_paths_process(mesh, res):
     plot_paths(mesh, res)
 
 def get_paths(mesh, name):
-    dither = Dither(factor=1.0, algorithm="SimplePalette", nc=2)
+    dither = Dither(factor=1.0, algorithm="fs", nc=2)
+    # dither = Dither(factor=1.0, algorithm="SimplePalette", nc=2)
     path_analyzer = PathAnalyzer(
         tube_length=5e1, diameter=2e-2, cone_height=1e-2, step_angle=36, num_vectors=12
     )
 
-    res = mesh_to_paths(mesh=mesh, n_samples=50_000, max_dist=0.0012, home_point=((0, 0, 0.1), (0, 0, -1)), verbose=True, ditherer=dither, path_analyzer=path_analyzer, bbox_scale=1, nz_threshold=-1.0, thickness=0.0)
+    res = mesh_to_paths(mesh=mesh, n_samples=50_000, max_dist=0.0012, home_point=((0, 0, 0.11), (0, 0, -1)), verbose=True, ditherer=dither, path_analyzer=path_analyzer, bbox_scale=1, nz_threshold=-1.0, thickness=0.0006)
+    # res = mesh_to_paths(mesh=mesh, n_samples=50_000, max_dist=0.0012, home_point=((0, 0, 0.1), (0, 0, -1)), verbose=True, ditherer=dither, path_analyzer=path_analyzer, bbox_scale=1, nz_threshold=-1.0, thickness=0.0)
+
+
     # res = mesh_to_paths(mesh=mesh, n_samples=200_000, max_dist=0.008, home_point=((0, 0, 0.1), (0, 0, -1)), verbose=True, ditherer=dither, path_analyzer=path_analyzer, bbox_scale=1.1, nz_threshold=-1.0, thickness=0.0)
     # res = mesh_to_paths(mesh=mesh, n_samples=25_000, max_dist=0.008, home_point=((0, 0, 0.1), (0, 0, -1)), verbose=True, ditherer=dither, path_analyzer=path_analyzer, bbox_scale=1.1, nz_threshold=-1.0, thickness=0.004)
     # res = mesh_to_paths(mesh=mesh, n_samples=25_000, max_dist=0.008, home_point=((0, 0, 0.1), (0, 0, -1)), verbose=True, ditherer=dither, path_analyzer=path_analyzer, bbox_scale=1.1, nz_threshold=-1.0, thickness=0.006)
@@ -112,8 +116,9 @@ def get_paths(mesh, name):
 
 
 #  ---------------- MAIN ----------------
-folder_name = "cube_edge_top"
-# folder_name = "cube_isc_top_filled"
+start_pipeline = time.time()
+# folder_name = "cube_edge_top"
+folder_name = "cube_isc_top_filled"
 # folder_name = "duck_eyes_crown"
 timestamp = datetime.now().strftime("%d.%m.%Y_%Hh%Mm%Ss")
 
@@ -123,11 +128,13 @@ mesh_file_path = find_obj_files(folder_path)
 
 mesh = load_mesh(mesh_file_path)
 
-modify_mesh_position(mesh, rotation_angle=180)
+modify_mesh_position(mesh, rotation_angle=90)
 
 paths_file_path = f"{folder_path}/paths_{timestamp}.json"
 
 get_paths(mesh, paths_file_path)
+
+end_path = time.time()
 
 latest_path = load_latest_timestamped_file(folder_path, "paths")
 print(f"Loading {latest_path} path file")
@@ -141,10 +148,15 @@ poses = [[*path[0], *path[1]] for path in res[0][1]] # res[0] for the first colo
 
 trajectory_filename = f"trajectory_{folder_name}_{timestamp}"
 
-
+print(f"Starting IK for {len(poses)} poses")
+start_IK = time.time()
 generateTrajectoryFromPoses(
     poses=poses,
     filename=trajectory_filename,
     graph=False,
     verbose=True
 )
+end_IK = time.time()
+print(f"Path generation took {end_path - start_pipeline} seconds")
+print(f"IK took {end_IK - start_IK} seconds")
+print(f"Pipeline took {end_IK - start_pipeline} seconds")
