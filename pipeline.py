@@ -16,7 +16,7 @@ def generateTrajectoryFromPoses(poses, filename="trajectory.json", graph=False, 
         - poses A list of pose [x, y, z, qx, qy, qz, qw]
     """
 
-    kine = URKinematics("ur3e_pen_final_2")
+    kine = URKinematics("ur3e_pen_final")
 
     multi = MultiURKinematics(kine)
 
@@ -52,7 +52,7 @@ def generateTrajectoryFromPoses(poses, filename="trajectory.json", graph=False, 
 
     def generate_trajectory_file(data, filename=f"./trajectories/{filename}.json"):
         modTraj = []
-        time_step = 500_000_000  # Incrément du temps [us]
+        time_step = 1_000_000_000  # Incrément du temps [us]
         time = 4_000_000_000
 
         for arr in data:
@@ -69,10 +69,10 @@ def generateTrajectoryFromPoses(poses, filename="trajectory.json", graph=False, 
             )
             time += time_step
 
-        # with open(filename, "w") as f:
-        #     json.dump({"modTraj": modTraj}, f, indent=4)
+        with open(filename, "w") as f:
+            json.dump({"modTraj": modTraj}, f, indent=4)
 
-        # print(f"Trajectory file '{filename}' generated successfully.")
+        print(f"Trajectory file '{filename}' generated successfully.")
 
     if verbose:
         number_angles = len(angles.trajectory)

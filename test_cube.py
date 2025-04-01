@@ -102,12 +102,12 @@ def get_paths(mesh, name):
         tube_length=5e1, diameter=2e-2, cone_height=1e-2, step_angle=36, num_vectors=12
     )
 
-    # res = mesh_to_paths(mesh=mesh, n_samples=50_000, max_dist=0.0012, home_point=((0, 0, 0.11), (0, 0, -1)), verbose=True, ditherer=dither, path_analyzer=path_analyzer, bbox_scale=1, nz_threshold=-1.0, thickness=0.0006)
+    res = mesh_to_paths(mesh=mesh, n_samples=50_000, max_dist=0.0012, home_point=((0, 0, 0.11), (0, 0, -1)), verbose=True, ditherer=dither, path_analyzer=path_analyzer, bbox_scale=1, nz_threshold=-1.0, thickness=0.0006)
     # res = mesh_to_paths(mesh=mesh, n_samples=50_000, max_dist=0.0012, home_point=((0, 0, 0.1), (0, 0, -1)), verbose=True, ditherer=dither, path_analyzer=path_analyzer, bbox_scale=1, nz_threshold=-1.0, thickness=0.0)
 
 
     # res = mesh_to_paths(mesh=mesh, n_samples=200_000, max_dist=0.008, home_point=((0, 0, 0.1), (0, 0, -1)), verbose=True, ditherer=dither, path_analyzer=path_analyzer, bbox_scale=1.1, nz_threshold=-1.0, thickness=0.0)
-    res = mesh_to_paths(mesh=mesh, n_samples=25_000, max_dist=0.008, home_point=((0, 0, 0.1), (0, 0, -1)), verbose=True, ditherer=dither, path_analyzer=path_analyzer, bbox_scale=1.1, nz_threshold=-1.0, thickness=0.004)
+    # res = mesh_to_paths(mesh=mesh, n_samples=25_000, max_dist=0.008, home_point=((0, 0, 0.1), (0, 0, -1)), verbose=True, ditherer=dither, path_analyzer=path_analyzer, bbox_scale=1.1, nz_threshold=-1.0, thickness=0.004)
     # res = mesh_to_paths(mesh=mesh, n_samples=25_000, max_dist=0.008, home_point=((0, 0, 0.1), (0, 0, -1)), verbose=True, ditherer=dither, path_analyzer=path_analyzer, bbox_scale=1.1, nz_threshold=-1.0, thickness=0.006)
 
     with open(f"{name}", "w") as f:
@@ -117,11 +117,11 @@ def get_paths(mesh, name):
 
 #  ---------------- MAIN ----------------
 start_pipeline = time.time()
-folder_name = "cube_edge_top"
+# folder_name = "cube_edge_top"
 # folder_name = "cube_isc_top_filled"
 # folder_name = "duck_crown"
 # folder_name = "duck_eyes"
-# folder_name = "duck_one_eye"
+folder_name = "duck_one_eye"
 # folder_name = "duck_eyes_crown"
 # folder_name = "cube_isc_side_filled"
 timestamp = datetime.now().strftime("%d.%m.%Y_%Hh%Mm%Ss")
@@ -132,7 +132,7 @@ mesh_file_path = find_obj_files(folder_path)
 
 mesh = load_mesh(mesh_file_path)
 
-modify_mesh_position(mesh, rotation_angle=0)
+modify_mesh_position(mesh, rotation_angle=270)
 # modify_mesh_position(mesh, rotation_angle=240) # For duck_eyes 270
 
 paths_file_path = f"{folder_path}/paths_{timestamp}.json"
