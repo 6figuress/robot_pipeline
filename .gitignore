@@ -4,3 +4,7 @@ ur_log
 pics
 results
 uv.lock
+painting_models/**/angles_*
+painting_models/**/paths_*
+painting_models/**/trajectory_*
+**/Zone.Identifier

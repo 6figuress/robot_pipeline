@@ -60,8 +60,10 @@ def get_paths(mesh, name):
         tube_length=5e1, diameter=2e-2, cone_height=1e-2, step_angle=36, num_vectors=12
     )
 
-    res = mesh_to_paths(mesh=mesh, n_samples=50_000, max_dist=0.0012, home_point=((0, 0, 0.1), (0, 0, -1)), verbose=True, ditherer=dither, path_analyzer=path_analyzer, bbox_scale=1, nz_threshold=-1.0, thickness=0.0)
-    # res = mesh_to_paths(mesh=mesh, n_samples=50_000, max_dist=0.008, home_point=((0, 0, 0.1), (0, 0, -1)), verbose=True, ditherer=dither, path_analyzer=path_analyzer, bbox_scale=1.1, nz_threshold=-1.0, thickness=0.004)
+    # res = mesh_to_paths(mesh=mesh, n_samples=50_000, max_dist=0.0012, home_point=((0, 0, 0.1), (0, 0, -1)), verbose=True, ditherer=dither, path_analyzer=path_analyzer, bbox_scale=1, nz_threshold=-1.0, thickness=0.0)
+    # res = mesh_to_paths(mesh=mesh, n_samples=200_000, max_dist=0.008, home_point=((0, 0, 0.1), (0, 0, -1)), verbose=True, ditherer=dither, path_analyzer=path_analyzer, bbox_scale=1.1, nz_threshold=-1.0, thickness=0.0)
+    # res = mesh_to_paths(mesh=mesh, n_samples=25_000, max_dist=0.008, home_point=((0, 0, 0.1), (0, 0, -1)), verbose=True, ditherer=dither, path_analyzer=path_analyzer, bbox_scale=1.1, nz_threshold=-1.0, thickness=0.004)
+    res = mesh_to_paths(mesh=mesh, n_samples=25_000, max_dist=0.008, home_point=((0, 0, 0.1), (0, 0, -1)), verbose=True, ditherer=dither, path_analyzer=path_analyzer, bbox_scale=1.1, nz_threshold=-1.0, thickness=0.006)
 
     with open(f"{name}", "w") as f:
         json.dump(res, f, indent=4, cls=NumpyEncoder)
@@ -96,18 +98,24 @@ def plot_paths_process(mesh, res):
     plot_paths(mesh, res)
 # ------------------ MAIN ------------------
 
+# TODO : select the folder to load
 # folder_name = "cube"
+folder_name = "cube_edge_top"
 # folder_name = "cube_isc_top"
 # folder_name = "cube_isc_top_filled"
 # folder_name = "cube_isc_side"
-folder_name = "duck_isc_filled"
+# folder_name = "duck_isc_filled"
+# folder_name = "duck_eyes"
+# folder_name = "duck_crown"
+# folder_name = "duck_eyes_crown"
 
 timestamp = datetime.now().strftime("%d.%m.%Y_%Hh%Mm%Ss")
 
-
 folder_path = f"./painting_models/{folder_name}"
-mesh_file_path = f"{folder_path}/duck_isc.obj"
-# mesh_file_path = f"{folder_path}/cube_8mm.obj"
+
+#TODO : select the mesh file to load
+mesh_file_path = f"{folder_path}/cube_8mm.obj"
+# mesh_file_path = f"{folder_path}/duck_isc.obj"
 
 mesh = load_mesh(mesh_file_path)
 
