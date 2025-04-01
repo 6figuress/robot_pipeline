@@ -10,7 +10,7 @@ from mesh_path_stub import MeshPathStub
 import os
 
 
-def generateTrajectoryFromPoses(poses, filename="trajectory.json", graph=False):
+def generateTrajectoryFromPoses(poses, filename="trajectory.json", graph=False, verbose=False):
     """
     Generate a trajectory.json file from a list of pose
 
@@ -85,4 +85,11 @@ def generateTrajectoryFromPoses(poses, filename="trajectory.json", graph=False):
 
         print(f"Trajectory file '{filename}' generated successfully.")
 
+    if verbose:
+        number_angles = len(angles.trajectory)
+        number_points = len(poses)
+        ratio = number_angles / number_points
+        print(
+            f"Number of poses: {number_points}, Number of angles: {number_angles}, Ratio: {ratio}"
+        )
     generate_trajectory_file(angles.trajectory)
