@@ -1,4 +1,5 @@
 import json
+import math
 from camera_sync import Transform, vizPoses
 import numpy as np
 from ur_ikfast.ur_kinematics import URKinematics, MultiURKinematics
@@ -8,77 +9,80 @@ from calibrate import loadCalibration
 from mesh_path_stub import MeshPathStub
 import os
 
-# mesh = load_mesh("./painting_models/cube/cube_8mm.obj")
 
-# res = mesh_to_paths(mesh, n_samples=50000, verbose=True)
+def generateTrajectoryFromPoses(poses, filename="trajectory.json", graph=False):
+    """
+    Generate a trajectory.json file from a list of pose
 
-res = []
+    Parameters:
+        - poses A list of pose [x, y, z, qx, qy, qz, qw]
+    """
 
+    kine = URKinematics("ur3e_pen_final")
 
-traj_transf = []
+    multi = MultiURKinematics(kine)
 
-# for r in res:
-#     for pose in r[1]:
-#         traj_transf.append(
-#             Transform.fromQuaternion(
-#                 quat=pose[1], tvec=np.array(pose[0]) * 1000, scalar_first=False
-#             )
-#         )
+    transf = []
 
-
-stub: MeshPathStub = MeshPathStub()
-
-trajectories: list[Transform] = traj_transf  # stub.line_on_cube(n_points=10)
-
-base2world, grip2cam = loadCalibration(
-    "./calibrations/calibration_logitec_with_stand.npz"
-)
-
-
-# Those value are written in the technical plan of the duck support
-duck2world: Transform = Transform.fromRodrigues(
-    rvec=[0.0, 0.0, 0.0], tvec=[112.57, -147.57, 111.0]
-)
-
-duck2robot = duck2world.combine(base2world.invert)
-
-
-transformed = []
-
-for i in range(len(trajectories)):
-    transformed.append(trajectories[i].combine(duck2robot))
-
-
-kine = URKinematics("ur3e_pen_final")
-
-multi = MultiURKinematics(kine)
-
-angles = multi.inverse_optimal([t.kine_pose for t in transformed])
-
-
-def generate_trajectory_file(data, filename="./trajectories/trajectory.json"):
-    modTraj = []
-    time_step = 2  # Incrément du temps
-    time = 4
-
-    for arr in data:
-        positions = [round(float(x), 4) if abs(x) >= 1e-4 else 0.0 for x in arr]
-        velocities = [0.0] * 6  # Vélocités à zéro
-        modTraj.append(
-            {
-                "positions": positions,
-                "velocities": velocities,
-                "time_from_start": [time, 0],
-            }
+    for p in poses:
+        transf.append(
+            Transform.fromQuaternion(quat=p[3:], tvec=p[:3], scalar_first=False)
         )
-        time += time_step
 
-    with open(filename, "w") as f:
-        json.dump({"modTraj": modTraj}, f, indent=4)
+    # Those value are written in the technical plan of the duck support
+    duck2world: Transform = Transform.fromRodrigues(
+        rvec=[0.0, 0.0, 0.0], tvec=[112.57, -147.57, 111.0]
+    )
 
-    print(f"Trajectory file '{filename}' generated successfully.")
+    base2world, grip2cam = loadCalibration(
+        "./calibrations/calibration_logitec_with_stand.npz"
+    )
 
+    world2base = Transform.fromRodrigues(
+        rvec=base2world.invert.rvec,
+        tvec=[
+            base2world.invert.tvec[0] + 300,
+            base2world.invert.tvec[1],
+            base2world.invert.tvec[2],
+        ],
+    )
 
-# generate_trajectory_file(angles.trajectory)
+    test = Transform.fromRodrigues(rvec=[0.0, 0.0, math.pi / 4], tvec=[0.0, 0.0, 0.0])
 
-print(json.dumps(angles.trajectory))
+    world2base = world2base.combine(test)
+
+    duck2robot = duck2world.combine(world2base)
+
+    transformed = []
+
+    for i in range(len(transf)):
+        transformed.append(transf[i].combine(duck2robot))
+
+    if graph:
+        vizPoses(transformed)
+
+    angles = multi.inverse_optimal([t.kine_pose for t in transformed])
+
+    def generate_trajectory_file(data, filename=f"./trajectories/{filename}.json"):
+        modTraj = []
+        time_step = 2  # Incrément du temps
+        time = 4
+
+        for arr in data:
+            positions = [round(float(x), 4) if abs(x) >= 1e-4 else 0.0 for x in arr]
+            velocities = [0.0] * 6  # Vélocités à zéro
+            modTraj.append(
+                {
+                    "positions": positions,
+                    "velocities": velocities,
+                    "time_from_start": [time, 0],
+                }
+            )
+            time += time_step
+
+        with open(filename, "w") as f:
+            json.dump({"modTraj": modTraj}, f, indent=4)
+
+        print(f"Trajectory file '{filename}' generated successfully.")
+
+    generate_trajectory_file(angles.trajectory)
