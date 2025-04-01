@@ -250,7 +250,12 @@ if __name__ == "__main__":
     poses = readCSV()
 
     robot_poses, camera_poses = processPoses(
-        poses, ROBOT_CAM, show_graph=True, limit=50, RMSE_treshold=4.5, MAE_treshold=4.5
+        poses,
+        ROBOT_CAM,
+        show_graph=False,
+        limit=50,
+        RMSE_treshold=4.5,
+        MAE_treshold=4.5,
     )
 
     vizPoses(robot_poses)
@@ -265,11 +270,6 @@ if __name__ == "__main__":
     base2world = grip2cam
 
     grip2cam = old
-
-    # End
-    import ipdb
-
-    ipdb.set_trace()
 
     def showCameraPosition():
         gripInWorld = robot_poses[0].combine(base2world)

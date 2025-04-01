@@ -6,8 +6,6 @@ from ur_ikfast.ur_kinematics import URKinematics, MultiURKinematics
 
 
 from calibrate import loadCalibration
-from mesh_path_stub import MeshPathStub
-import os
 
 
 def generateTrajectoryFromPoses(poses, filename="trajectory.json", graph=False, verbose=False):
@@ -40,7 +38,6 @@ def generateTrajectoryFromPoses(poses, filename="trajectory.json", graph=False, 
 
     world2base = base2world.invert
 
-
     duck2robot = duck2world.combine(world2base)
 
     transformed = []
@@ -72,10 +69,10 @@ def generateTrajectoryFromPoses(poses, filename="trajectory.json", graph=False, 
             )
             time += time_step
 
-        with open(filename, "w") as f:
-            json.dump({"modTraj": modTraj}, f, indent=4)
+        # with open(filename, "w") as f:
+        #     json.dump({"modTraj": modTraj}, f, indent=4)
 
-        print(f"Trajectory file '{filename}' generated successfully.")
+        # print(f"Trajectory file '{filename}' generated successfully.")
 
     if verbose:
         number_angles = len(angles.trajectory)

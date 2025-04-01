@@ -205,9 +205,9 @@ def autoFromFile(path, cam, iscoin):
 if __name__ == "__main__":
     # TODO: We can try to set a closer focus distance
 
-    cam = Camera("Logitec_robot", 2, focus=10, resolution=(1920, 1080))
+    cam = Camera("Logitec_robot", 0, focus=10, resolution=(1920, 1080))
 
-    iscoin = ISCoin(host="10.30.5.158", opened_gripper_size_mm=40)
+    iscoin = ISCoin(host="10.30.5.159", opened_gripper_size_mm=40)
 
     arucos = getArucosFromPaper(4)
 

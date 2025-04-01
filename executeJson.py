@@ -22,11 +22,11 @@ def readJson(path):
 # import ipdb
 # ipdb.set_trace()
 
-traj = readJson("duck_trajectory.json")
+traj = readJson("trajectory_duck_front.json")
 
 acc = radians(60)
 
-speed = radians(25)
+speed = radians(5)
 
 for p in traj:
     iscoin.robot_control.movej(Joint6D.createFromRadList(p), a=acc, v=speed)
