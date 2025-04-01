@@ -134,15 +134,14 @@ with open(latest_path, "r") as f:
 p = Process(target=plot_paths_process, args=(mesh, res))
 p.start()
 
-number_points = len(res[0][1])
+number_points = len(res[0][2])
 
 traj_transf = []
 
 # For now, taking only white trajectory
 for r in res:
-    if r[0] == [255, 255, 255, 255]: # used when json is loaded
-    # if r[0] == (255, 255, 255, 255):
-        for pose in r[1]:
+    if r[1] == [255, 255, 255, 255]: # used when json is loaded
+        for pose in r[2]:
             traj_transf.append(
                 Transform.fromQuaternion(
                     quat=pose[1], tvec=np.array(pose[0]) * 1000, scalar_first=False
