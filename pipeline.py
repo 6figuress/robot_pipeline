@@ -65,17 +65,19 @@ def generateTrajectoryFromPoses(poses, filename="trajectory.json", graph=False, 
 
     def generate_trajectory_file(data, filename=f"./trajectories/{filename}.json"):
         modTraj = []
-        time_step = 2  # Incrément du temps
-        time = 4
+        time_step = 500_000_000  # Incrément du temps [us]
+        time = 4_000_000_000
 
         for arr in data:
             positions = [round(float(x), 4) if abs(x) >= 1e-4 else 0.0 for x in arr]
             velocities = [0.0] * 6  # Vélocités à zéro
+            ns_time = time % 1_000_000_000
+            s_time = int((time - ns_time)/1_000_000_000)
             modTraj.append(
                 {
                     "positions": positions,
                     "velocities": velocities,
-                    "time_from_start": [time, 0],
+                    "time_from_start": [s_time, ns_time],
                 }
             )
             time += time_step
