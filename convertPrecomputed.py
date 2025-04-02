@@ -2,8 +2,10 @@ import numpy as np
 import pandas as pd
 from camera_sync import Transform, vizPoses
 
+file = "vertices_eye"
+
 # Read the CSV file
-csv_path = '/home/marttave/projects/test/vertices_front.csv'
+csv_path = f"./pre_generated_vertices/{file}.csv"
 df = pd.read_csv(csv_path)
 
 # Extract vertex indices
@@ -26,4 +28,4 @@ for _, row in df.iterrows():
 
 poses = np.array([t.transf_mat for t in transforms])
 
-np.savez("pre_generated_traj/duck_front.npz", poses=poses)
+np.savez(f"pre_generated_traj/{file}.npz", poses=poses)

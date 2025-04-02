@@ -9,11 +9,9 @@ def generateForNpz(filename):
 
     transf = []
 
-    order = [2, 1, 0, 3, 4, 5, 6]
-
-    for i in order:
+    for i in range(len(data)):
         t = Transform(transf_mat=data[i])
-        transf.append(Transform.fromRodrigues(rvec=t.rvec, tvec=t.tvec * 1000))
+        transf.append(Transform.fromRodrigues(rvec=t.rvec, tvec=t.tvec))
 
     generateTrajectoryFromPoses(
         [t.kine_pose for t in transf], graph=False, filename=f"trajectory_{filename}"
@@ -21,18 +19,18 @@ def generateForNpz(filename):
 
 
 if __name__ == "__main__":
-    toGen = ["duck_front", "duck_head", "duck_right_wing"]
+    toGen = ["vertices_eye"]
 
     # toGen = ["duck_front"]
 
-    # for g in toGen:
-    #     try:
-    #         generateForNpz(g)
-    #     except Exception as e:
-    #         if str(e) != "No solutions found":
-    #             raise e
-    #         else:
-    #             print(f"Skipping {g} because no solution was found")
+    for g in toGen:
+        try:
+            generateForNpz(g)
+        except Exception as e:
+            if str(e) != "No solutions found":
+                raise e
+            else:
+                print(f"Skipping {g} because no solution was found")
 
     # x = [i for i in range(-400, 400, 10)]
 
