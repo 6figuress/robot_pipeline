@@ -13,6 +13,9 @@ import time
 import os
 import re
 
+import subprocess
+from PIL import Image
+
 from multiprocessing import Process
 
 def modify_mesh_position(mesh, rotation_angle=0):
@@ -76,30 +79,78 @@ def load_latest_timestamped_file(folder_path, prefix):
     latest = max(candidates)[1]
     return os.path.join(folder_path, latest)
 
-def find_obj_files(directory):
-    obj_files = []
-    pattern = re.compile(r'.*\.obj$', re.IGNORECASE)
+def find_ext_files(directory, extension=".obj"):
+    ext_files = []
+    escaped_ext = re.escape(extension)
+    pattern = re.compile(rf'.*{escaped_ext}$', re.IGNORECASE)
 
     for root, _, files in os.walk(directory):
         for file in files:
             if pattern.match(file):
                 full_path = os.path.join(root, file)
-                obj_files.append(full_path)
+                ext_files.append(full_path)
 
-    return obj_files[0]
+    if not ext_files:
+        print(f"No files with extension {extension} found in {directory}")
+        return None
+    if len(ext_files) > 1:
+        print(f"Multiple files with extension {extension} found in {directory}:")
+        for file in ext_files:
+            print(f"- {file}")
+        print("Returning the first one.")
+    return ext_files[0]
 
+def convert_glb_to_obj(glb_file_path):
+    result = subprocess.run(["./gltf_obj.sh", glb_file_path])
+
+    if result.returncode == 0:
+        new_file_path = glb_file_path.replace(".glb", ".obj")
+        if os.path.exists(new_file_path):
+            print(f"Converted {glb_file_path} to {new_file_path}")
+        else:
+            raise FileNotFoundError(f"Converted file {new_file_path} does not exist.")
+    else:
+        print("Error converting GLB to OBJ:", result.stderr)
+        print("Return code:", result.returncode)
+        raise RuntimeError("Failed to convert GLTF file to OBJ")
+
+
+def get_mesh(folder_path):
+    mesh_file_path = find_ext_files(folder_path, extension=".obj")
+    if not mesh_file_path:
+        print(f"No .obj file found in {folder_path}, checking for .glb files")
+        glb_file = find_ext_files(folder_path, extension=".glb")
+        if glb_file:
+            print(f"Converting {glb_file} to .obj")
+            convert_glb_to_obj(glb_file)
+            mesh_file_path = find_ext_files(folder_path, extension=".obj")
+            if not mesh_file_path:
+                raise FileNotFoundError(f"Failed to find .obj file after conversion in {folder_path}")
+        else:
+            raise FileNotFoundError(f"No model file found in {folder_path}")
+        
+    # Check if the file "nopaint_mask.png" exists in the same directory
+    nopaint_mask_path = os.path.join(folder_path, "nopaint_mask.png")
+    nopaint_mask = None
+    if os.path.exists(nopaint_mask_path):
+        print(f"Loading nopaint mask from {nopaint_mask_path}")
+        nopaint_mask = Image.open("nopaint_mask.png").convert("L")
+        
+    mesh = load_mesh(mesh_file_path)
+    return mesh, nopaint_mask
+    
 def plot_paths_process(mesh, res):
     from duck_factory.mesh_to_paths import plot_paths
     plot_paths(mesh, res)
 
-def get_paths(mesh, name):
+def get_paths(mesh, nopaint_mask, name):
     # dither = Dither(factor=1.0, algorithm="fs", nc=2)
     dither = Dither(factor=1.0, algorithm="SimplePalette", nc=2)
     path_analyzer = PathAnalyzer(
         tube_length=5e1, diameter=2e-2, cone_height=1e-2, step_angle=36, num_vectors=12
     )
 
-    res = mesh_to_paths(mesh=mesh, n_samples=50_000, max_dist=0.0012, home_point=((0, 0, 0.11), (0, 0, -1)), verbose=True, ditherer=dither, path_analyzer=path_analyzer, bbox_scale=1, nz_threshold=-1.0, thickness=0.0006)
+    res = mesh_to_paths(mesh=mesh, n_samples=50_000, nopaint_mask=nopaint_mask, max_dist=0.0012, home_point=((0, 0, 0.11), (0, 0, -1)), verbose=True, ditherer=dither, path_analyzer=path_analyzer, bbox_scale=1, nz_threshold=-1.0, thickness=0.0006)
     # res = mesh_to_paths(mesh=mesh, n_samples=50_000, max_dist=0.0012, home_point=((0, 0, 0.1), (0, 0, -1)), verbose=True, ditherer=dither, path_analyzer=path_analyzer, bbox_scale=1, nz_threshold=-1.0, thickness=0.0)
 
 
@@ -119,9 +170,10 @@ start_pipeline = time.time()
 # folder_name = "duck_crown"
 # folder_name = "duck_eyes"
 # folder_name = "duck_eyes_colored"
-folder_name = "duck_one_eye"
+# folder_name = "duck_one_eye"
 # folder_name = "duck_eyes_crown"
 # folder_name = "cube_isc_side_filled"
+folder_name = "duck_spiderman_glb"
 
 # painting_faces = ["top", "bottom", "left", "right","front", "back"]
 painting_faces = ["top", "left", "right","front"]
@@ -130,15 +182,13 @@ timestamp = datetime.now().strftime("%d.%m.%Y_%Hh%Mm%Ss")
 
 folder_path = f"./painting_models/{folder_name}"
 
-mesh_file_path = find_obj_files(folder_path)
-
-mesh = load_mesh(mesh_file_path)
+mesh, nopaint_mask = get_mesh(folder_path)
 
 modify_mesh_position(mesh, rotation_angle=0)
 
 paths_file_path = f"{folder_path}/paths_{timestamp}.json"
 
-get_paths(mesh, paths_file_path)
+get_paths(mesh, nopaint_mask, paths_file_path)
 
 end_path = time.time()
 
