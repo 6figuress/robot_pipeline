@@ -86,7 +86,7 @@ def generateTrajectoryFromPoses(poses, filename="trajectory.json", graph=False, 
 
 
 def generateTrajectoryFromMultiplePoses(list_poses, filename="trajectory.json", graph=False, verbose=False):
-    kine = URKinematics("ur3e_pen_final")
+    kine = URKinematics("ur3e_pen")
     multi = MultiURKinematics(kine)
     duck2robot = get_duck_to_robot_transform()
 

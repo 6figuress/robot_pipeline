@@ -139,18 +139,19 @@ def get_mesh(folder_path):
     mesh = load_mesh(mesh_file_path)
     return mesh, nopaint_mask
     
-def plot_paths_process(mesh, res):
+def plot_paths_process(mesh, res, restricted_face):
     from duck_factory.mesh_to_paths import plot_paths
-    plot_paths(mesh, res)
+    restricted_face = [4, 6] 
+    plot_paths(mesh, res, restricted_face=restricted_face)
 
-def get_paths(mesh, nopaint_mask, name):
+def get_paths(mesh, nopaint_mask, name, restricted_face=None):
     # dither = Dither(factor=1.0, algorithm="fs", nc=2)
     dither = Dither(factor=1.0, algorithm="SimplePalette", nc=2)
     path_analyzer = PathAnalyzer(
         tube_length=5e1, diameter=2e-2, cone_height=1e-2, step_angle=36, num_vectors=12
     )
 
-    res = mesh_to_paths(mesh=mesh, n_samples=50_000, nopaint_mask=nopaint_mask, max_dist=0.0012, home_point=((0, 0, 0.11), (0, 0, -1)), verbose=True, ditherer=dither, path_analyzer=path_analyzer, bbox_scale=1, nz_threshold=-1.0, thickness=0.0006)
+    res = mesh_to_paths(mesh=mesh, n_samples=50_000, nopaint_mask=nopaint_mask, max_dist=0.0012, home_point=((0, 0, 0.11), (0, 0, -1)), verbose=True, ditherer=dither, path_analyzer=path_analyzer, bbox_scale=1, nz_threshold=-1.0, thickness=0.0006, restricted_face=restricted_face)
     # res = mesh_to_paths(mesh=mesh, n_samples=50_000, max_dist=0.0012, home_point=((0, 0, 0.1), (0, 0, -1)), verbose=True, ditherer=dither, path_analyzer=path_analyzer, bbox_scale=1, nz_threshold=-1.0, thickness=0.0)
 
 
@@ -170,13 +171,15 @@ start_pipeline = time.time()
 # folder_name = "duck_crown"
 # folder_name = "duck_eyes"
 # folder_name = "duck_eyes_colored"
-# folder_name = "duck_one_eye"
+folder_name = "duck_one_eye"
 # folder_name = "duck_eyes_crown"
 # folder_name = "cube_isc_side_filled"
-folder_name = "duck_spiderman_glb"
+# folder_name = "duck_spiderman_glb"
 
 # painting_faces = ["top", "bottom", "left", "right","front", "back"]
 painting_faces = ["top", "left", "right","front"]
+restricted_face = [3, 8] #bottom
+
 
 timestamp = datetime.now().strftime("%d.%m.%Y_%Hh%Mm%Ss")
 
@@ -188,7 +191,7 @@ modify_mesh_position(mesh, rotation_angle=0)
 
 paths_file_path = f"{folder_path}/paths_{timestamp}.json"
 
-get_paths(mesh, nopaint_mask, paths_file_path)
+get_paths(mesh, nopaint_mask, paths_file_path, restricted_face=restricted_face)
 
 end_path = time.time()
 
@@ -197,7 +200,9 @@ print(f"Loading {latest_path} path file")
 with open(latest_path, "r") as f:
     res = json.load(f)
 
-p = Process(target=plot_paths_process, args=(mesh, res))
+
+
+p = Process(target=plot_paths_process, args=(mesh, res, restricted_face))
 p.start()
 
 
