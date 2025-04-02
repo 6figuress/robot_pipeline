@@ -1,15 +1,12 @@
-from pipeline import generateTrajectoryFromPoses
+from pipeline import generateTrajectoryFromPoses, generateTrajectoryFromMultiplePoses
 
-from duck_factory.mesh_to_paths import mesh_to_paths, load_mesh, plot_paths
+from duck_factory.mesh_to_paths import mesh_to_paths, load_mesh
 
 from duck_factory.dither_class import Dither
 from duck_factory.reachable_points import PathAnalyzer
 import json
 import numpy as np
-from ur_ikfast.ur_kinematics import URKinematics, MultiURKinematics, generate_trajectory
 
-from calibrate import loadCalibration
-from camera_sync import Transform, vizPoses
 import trimesh
 from datetime import datetime
 import time
@@ -18,7 +15,7 @@ import re
 
 from multiprocessing import Process
 
-def modify_mesh_position(mesh, rotation_angle=180):
+def modify_mesh_position(mesh, rotation_angle=0):
     mesh.vertices = np.column_stack(
         (
             -mesh.vertices[:, 0],  # -X
@@ -39,7 +36,7 @@ def modify_mesh_position(mesh, rotation_angle=180):
 
     # mesh.apply_translation([0, 0, 0.05])
 
-    angle_rad = np.radians(rotation_angle)
+    angle_rad = np.radians(rotation_angle+270) # the 270 are the default orientation of the duck
     rotation_matrix = trimesh.transformations.rotation_matrix(
         angle_rad,
         [0, 0, 1],
@@ -121,9 +118,14 @@ start_pipeline = time.time()
 # folder_name = "cube_isc_top_filled"
 # folder_name = "duck_crown"
 # folder_name = "duck_eyes"
+# folder_name = "duck_eyes_colored"
 folder_name = "duck_one_eye"
 # folder_name = "duck_eyes_crown"
 # folder_name = "cube_isc_side_filled"
+
+# painting_faces = ["top", "bottom", "left", "right","front", "back"]
+painting_faces = ["top", "left", "right","front"]
+
 timestamp = datetime.now().strftime("%d.%m.%Y_%Hh%Mm%Ss")
 
 folder_path = f"./painting_models/{folder_name}"
@@ -132,8 +134,7 @@ mesh_file_path = find_obj_files(folder_path)
 
 mesh = load_mesh(mesh_file_path)
 
-modify_mesh_position(mesh, rotation_angle=270)
-# modify_mesh_position(mesh, rotation_angle=240) # For duck_eyes 270
+modify_mesh_position(mesh, rotation_angle=0)
 
 paths_file_path = f"{folder_path}/paths_{timestamp}.json"
 
@@ -149,18 +150,40 @@ with open(latest_path, "r") as f:
 p = Process(target=plot_paths_process, args=(mesh, res))
 p.start()
 
-poses = [[*path[0], *path[1]] for path in res[0][1]] # res[0] for the first color data, res[0][0] to get the color, res[0][1] to get the path
+
+list_poses = []
+number_of_poses = 0
+for r in res:
+    face = r[0] # name of the face
+    color = r[1] # color of the face in rgba
+    paths = r[2] # path of the face
+
+    if face in painting_faces:
+        # TODO implement pen color change here, maybe order the paths by color so that we can change the color once
+        poses = [[*path[0], *path[1]] for path in paths]
+        number_of_poses += len(poses)
+        if len(poses) > 0:
+            print(f"Adding {len(poses)} poses for face {face} with color {color}")
+            list_poses.append(poses)
+        else:
+            print(f"Skipping face {face} with color {color} because it has no poses")
+    else:
+        print(f"Skipping face {face} with color {color} and {len(paths)} paths because it is not in the painting faces list")
+
 
 trajectory_filename = f"trajectory_{folder_name}_{timestamp}"
 
-print(f"Starting IK for {len(poses)} poses")
 start_IK = time.time()
-generateTrajectoryFromPoses(
-    poses=poses,
-    filename=trajectory_filename,
-    graph=False,
-    verbose=True
-)
+if number_of_poses == 0:
+    print("No poses found, skipping IK")
+else :
+    print(f"Starting IK for {number_of_poses} poses")
+    generateTrajectoryFromMultiplePoses(
+        list_poses=list_poses,
+        filename=trajectory_filename,
+        graph=False,
+        verbose=True
+    )
 end_IK = time.time()
 print(f"Path generation took {end_path - start_pipeline} seconds")
 print(f"IK took {end_IK - start_IK} seconds")
