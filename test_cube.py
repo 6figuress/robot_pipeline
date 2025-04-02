@@ -134,7 +134,7 @@ def get_mesh(folder_path):
     nopaint_mask = None
     if os.path.exists(nopaint_mask_path):
         print(f"Loading nopaint mask from {nopaint_mask_path}")
-        nopaint_mask = Image.open("nopaint_mask.png").convert("L")
+        nopaint_mask = Image.open(nopaint_mask_path).convert("L")
         
     mesh = load_mesh(mesh_file_path)
     return mesh, nopaint_mask
