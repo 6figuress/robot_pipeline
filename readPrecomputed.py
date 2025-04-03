@@ -1,6 +1,6 @@
 import numpy as np
 from camera_sync import Transform, vizPoses
-from pipeline import generateTrajectoryFromPoses
+from pipeline import Face, generateTrajectoryFromPoses
 
 
 def generateForNpz(filename):
@@ -14,12 +14,16 @@ def generateForNpz(filename):
         transf.append(Transform.fromRodrigues(rvec=t.rvec, tvec=t.tvec))
 
     generateTrajectoryFromPoses(
-        [t.kine_pose for t in transf], graph=False, filename=f"trajectory_{filename}"
+        poses=[t.kine_pose for t in transf],
+        paintableFace=Face.BACK,
+        currentFace=Face.RIGHT,
+        graph=False,
+        filename=f"trajectory_{filename}",
     )
 
 
 if __name__ == "__main__":
-    toGen = ["vertices_eye"]
+    toGen = ["duck_right_wing"]
 
     # toGen = ["duck_front"]
 

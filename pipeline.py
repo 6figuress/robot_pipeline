@@ -1,5 +1,6 @@
+from enum import Enum
 import json
-import math
+from math import pi, sin, cos, sqrt
 from camera_sync import Transform, vizPoses
 import numpy as np
 from ur_ikfast.ur_kinematics import URKinematics, MultiURKinematics
@@ -52,7 +53,27 @@ def generate_trajectory_file(data, filename):
     print(f"Trajectory file '{filename}' generated successfully.")
 
 
-def generateTrajectoryFromPoses(poses, filename="trajectory.json", graph=False, verbose=False):
+class Face(Enum):
+    FRONT = 0
+    LEFT = 1
+    BACK = 2
+    RIGHT = 3
+    TOP = -1
+
+
+def circular_distance(start: Face, end: Face) -> int:
+    """Calculate the forward distance between two Face enum values, looping if necessary."""
+    return (end.value - start.value) % (len(Face) - 1)
+
+
+def generateTrajectoryFromPoses(
+    poses,
+    paintableFace: Face = Face.BACK,
+    currentFace: Face = Face.RIGHT,
+    filename="trajectory.json",
+    graph=False,
+    verbose=False,
+):
     """
     Generate a trajectory.json file from a list of pose
 
@@ -60,10 +81,24 @@ def generateTrajectoryFromPoses(poses, filename="trajectory.json", graph=False, 
         - poses A list of pose [x, y, z, qx, qy, qz, qw]
     """
 
+    clockwise_quarter_rot = Transform.fromQuaternion(
+        quat=[sqrt(2) / 2, 0, 0, -sqrt(2) / 2], tvec=[0.0, 0.0, 0.0]
+    )
+
     kine = URKinematics("ur3e_pen")
     multi = MultiURKinematics(kine)
 
     transf = convert_poses_to_transforms(poses)
+
+    n_to_rotate = circular_distance(paintableFace, currentFace)
+
+    for n in range(n_to_rotate):
+        transf = [t.combine(clockwise_quarter_rot) for t in transf]
+
+    import ipdb
+
+    ipdb.set_trace()
+
     duck2robot = get_duck_to_robot_transform()
     transformed = apply_transform_chain(transf, duck2robot)
 
