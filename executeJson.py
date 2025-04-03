@@ -2,12 +2,11 @@ import json
 from math import radians
 import os
 from urbasic import ISCoin, CameraSettings, FocusSettings, Joint6D
+from simulator import createSimulator, getSimulator
+from simulator.simulator import Simulator
 
 
-iscoin = ISCoin(host="10.30.5.158", opened_gripper_size_mm=40)
-
-
-def executeJson(filepath):
+def executeJson(filepath, simulator=False):
     def readJson(path):
         points = []
         with open(os.path.join("./trajectories", path), "r") as file:
@@ -21,12 +20,22 @@ def executeJson(filepath):
     acc = radians(60)
 
     speed = radians(5)
+    if not simulator:
+        iscoin = ISCoin(host="10.30.5.158", opened_gripper_size_mm=40)
 
-    for p in traj:
-        iscoin.robot_control.movej(Joint6D.createFromRadList(p), a=acc, v=speed)
+        for p in traj:
+            iscoin.robot_control.movej(Joint6D.createFromRadList(p), a=acc, v=speed)
+    elif simulator:
+        sim = getSimulator()
+        sim.validateTrajectory(traj)
+        pass
 
 
-def executeSidedJson(folderPath, order=["front", "left", "back", "right", "top"]):
+def executeSidedJson(
+    folderPath, order=["front", "left", "back", "right", "top"], simulator=False
+):
+    if simulator:
+        createSimulator(gui=True, logs=True)
     for side in order:
         path: str = os.path.join(folderPath, f"{side}")
         if not os.path.exists(path):
@@ -41,7 +50,7 @@ def executeSidedJson(folderPath, order=["front", "left", "back", "right", "top"]
     pass
 
 
-def executeColoredJson(folderPath):
+def executeColoredJson(folderPath, simulator=False):
     files = [f for f in os.listdir(folderPath) if f.endswith(".json")]
 
     for f in files:
@@ -53,3 +62,7 @@ def executeColoredJson(folderPath):
         executeJson(path)
         print(f"Finished executing {f}")
     pass
+
+
+if __name__ == "__main__":
+    executeSidedJson("./trajectories/test")
