@@ -1,4 +1,4 @@
-from pipeline import generateTrajectoryFromPoses, generateTrajectoryFromMultiplePoses
+from pipeline import generateTrajectoryFromPoses
 
 from duck_factory.mesh_to_paths import mesh_to_paths, load_mesh
 
@@ -17,6 +17,8 @@ import subprocess
 from PIL import Image
 
 from multiprocessing import Process
+
+import argparse
 
 def modify_mesh_position(mesh, rotation_angle=0):
     mesh.vertices = np.column_stack(
@@ -144,102 +146,110 @@ def plot_paths_process(mesh, res, restricted_face):
     restricted_face = [4, 6] 
     plot_paths(mesh, res, restricted_face=restricted_face)
 
-def get_paths(mesh, nopaint_mask, name, restricted_face=None):
+def get_paths(mesh, nopaint_mask, name, restricted_face=None, n_samples=50_000, max_dist=0.004, thickness=0.002, bbox_scale=1.1, home_point=((0.04, -0.04, 0.11), (0, 0, -1)), verbose=True):
     # dither = Dither(factor=1.0, algorithm="fs", nc=2)
     dither = Dither(factor=1.0, algorithm="SimplePalette", nc=2)
     path_analyzer = PathAnalyzer(
         tube_length=5e1, diameter=2e-2, cone_height=1e-2, step_angle=36, num_vectors=12
     )
 
-    res = mesh_to_paths(mesh=mesh, n_samples=50_000, nopaint_mask=nopaint_mask, max_dist=0.004, home_point=((0.04, -0.04, 0.11), (0, 0, -1)), verbose=True, ditherer=dither, path_analyzer=path_analyzer, bbox_scale=1, nz_threshold=-1.0, thickness=0.002, restricted_face=restricted_face)
-    # res = mesh_to_paths(mesh=mesh, n_samples=50_000, max_dist=0.0012, home_point=((0, 0, 0.1), (0, 0, -1)), verbose=True, ditherer=dither, path_analyzer=path_analyzer, bbox_scale=1, nz_threshold=-1.0, thickness=0.0)
-
-
-    # res = mesh_to_paths(mesh=mesh, n_samples=200_000, max_dist=0.008, home_point=((0, 0, 0.1), (0, 0, -1)), verbose=True, ditherer=dither, path_analyzer=path_analyzer, bbox_scale=1.1, nz_threshold=-1.0, thickness=0.0)
-    # res = mesh_to_paths(mesh=mesh, n_samples=25_000, max_dist=0.008, home_point=((0, 0, 0.1), (0, 0, -1)), verbose=True, ditherer=dither, path_analyzer=path_analyzer, bbox_scale=1.1, nz_threshold=-1.0, thickness=0.004)
-    # res = mesh_to_paths(mesh=mesh, n_samples=25_000, max_dist=0.008, home_point=((0, 0, 0.1), (0, 0, -1)), verbose=True, ditherer=dither, path_analyzer=path_analyzer, bbox_scale=1.1, nz_threshold=-1.0, thickness=0.006)
+    res = mesh_to_paths(mesh=mesh, n_samples=n_samples, nopaint_mask=nopaint_mask, max_dist=max_dist, home_point=home_point, verbose=verbose, ditherer=dither, path_analyzer=path_analyzer, bbox_scale=bbox_scale, nz_threshold=-1.0, thickness=thickness, restricted_face=restricted_face)
 
     with open(f"{name}", "w") as f:
         json.dump(res, f, indent=4, cls=NumpyEncoder)
     print(f"Paths saved to {name}")
 
-#  ---------------- MAIN ----------------
-start_pipeline = time.time()
-# folder_name = "cube_edge_top"
-# folder_name = "cube_isc_top_filled"
-# folder_name = "duck_crown"
-# folder_name = "duck_eyes"
-# folder_name = "duck_eyes_colored"
-# folder_name = "duck_line"
-# folder_name = "duck_one_eye"
-# folder_name = "duck_eyes_crown"
-# folder_name = "cube_isc_side_filled"
-# folder_name = "duck_spiderman_glb"
-folder_name = "duck_isc_filled_right_side"
-# folder_name = "cube_isc_side_filled"
-
-# painting_faces = ["top", "bottom", "left", "right","front", "back"]
-painting_faces = ["top", "left", "right","front", "back"]
-restricted_face = [3, 8] #bottom
-
-
-timestamp = datetime.now().strftime("%d.%m.%Y_%Hh%Mm%Ss")
-
-folder_path = f"./painting_models/{folder_name}"
-
-mesh, nopaint_mask = get_mesh(folder_path)
-
-modify_mesh_position(mesh, rotation_angle=0)
-
-paths_file_path = f"{folder_path}/paths_{timestamp}.json"
-
-get_paths(mesh, nopaint_mask, paths_file_path, restricted_face=restricted_face)
-
-end_path = time.time()
-
-latest_path = load_latest_timestamped_file(folder_path, "paths")
-print(f"Loading {latest_path} path file")
-with open(latest_path, "r") as f:
-    res = json.load(f)
 
 
 
-p = Process(target=plot_paths_process, args=(mesh, res, restricted_face))
-p.start()
+def main(folder_name, output_dir="./trajectories", n_samples=50_000, display=False, max_dist=0.004, thickness=0.002, bbox_scale=1.1, home_point=((0.04, -0.04, 0.11), (0, 0, -1))):
+    """
+    Main function to run the pipeline"
+    Parameters:
+        - folder_name: name of the folder under ./painting_models/
+        - n_samples: number of samples for point cloud sampling
+        - display: display paths
+        - max_dist: max distance for path generation
+        - thickness: thickness for path generation
+        - bbox_scale: bounding box scale for path generation
+        - home_point: home point for path generation
+    """
+    start_pipeline = time.time()
+    timestamp = datetime.now().strftime("%d.%m.%Y_%Hh%Mm%Ss")
 
+    folder_path = f"./painting_models/{folder_name}"
 
-list_poses = []
-number_of_poses = 0
-trajectory_folder = f"./trajectories/trajectory_{folder_name}_{timestamp}"
-if not os.path.exists(trajectory_folder):
-    os.makedirs(trajectory_folder)
+    painting_faces = ["top", "left", "right", "front", "back"]
+    restricted_face = [3, 8]  # Bottom
 
-for r in res:
-    face = r[0] # name of the face
-    color = r[1] # color of the face in rgba
-    paths = r[2] # path of the face
+    mesh, nopaint_mask = get_mesh(folder_path)
+    modify_mesh_position(mesh, rotation_angle=0)
 
-    trajectory_filename = os.path.join(trajectory_folder, f"trajectory_{face}_{color}.json")
+    paths_file_path = f"{folder_path}/paths_{timestamp}.json"
+    get_paths(mesh, nopaint_mask, paths_file_path, restricted_face=restricted_face, n_samples=n_samples, max_dist=0.004, thickness=0.002, bbox_scale=1, home_point=((0.04, -0.04, 0.11), (0, 0, -1)), verbose=False)
 
-    if face in painting_faces:
-        poses = [[*path[0], *path[1]] for path in paths]
-        number_of_poses += len(poses)
-        if len(poses) > 0:
-            print(f"Adding {len(poses)} poses for face {face} with color {color}")
-            list_poses.append(poses)
+    end_path = time.time()
 
-            start_IK = time.time()
-            generateTrajectoryFromPoses(
-                poses,
-                filename=trajectory_filename,
-                graph=False,
-                verbose=True
-            )
-            end_IK = time.time()
-            print(f"IK for face {face}, color {color} and {len(poses)} poses took {end_IK - start_IK} seconds")
+    latest_path = load_latest_timestamped_file(folder_path, "paths")
+    print(f"Loading {latest_path} path file")
+    with open(latest_path, "r") as f:
+        res = json.load(f)
+
+    if display:
+        p = Process(target=plot_paths_process, args=(mesh, res, restricted_face))
+        p.start()
+
+    trajectory_folder = f"{output_dir}/trajectory_{folder_name}_{timestamp}"
+
+    if not os.path.exists(trajectory_folder):
+        os.makedirs(trajectory_folder)
+
+    for r in res:
+        face = r[0] # name of the face
+        color = r[1] # color of the face in rgba
+        paths = r[2] # path of the face
+
+        trajectory_filename = os.path.join(trajectory_folder, f"trajectory_{face}_{color}.json")
+
+        if face in painting_faces:
+            poses = [[*path[0], *path[1]] for path in paths]
+            if len(poses) > 0:
+                print(f"Adding {len(poses)} poses for face {face} with color {color}")
+                start_IK = time.time()
+                generateTrajectoryFromPoses(
+                    poses,
+                    filename=trajectory_filename,
+                    graph=False,
+                    verbose=True
+                )
+                end_IK = time.time()
+                print(f"IK for face {face}, color {color} and {len(poses)} poses took {end_IK - start_IK} seconds")
+            else:
+                print(f"Skipping face {face} with color {color} because it has no poses")
         else:
-            print(f"Skipping face {face} with color {color} because it has no poses")
-    else:
-        print(f"Skipping face {face} with color {color} and {len(paths)} paths because it is not in the painting faces list")
+            print(f"Skipping face {face} with color {color} and {len(paths)} paths because it is not in the painting faces list")
 
-print(f"Pipeline took {time.time() - start_pipeline} seconds")
+    print(f"Pipeline took {time.time() - start_pipeline} seconds")
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Mesh to trajectory pipeline")
+    parser.add_argument("--folder", type=str, required=True, help="Folder name under ./painting_models/")
+    parser.add_argument("--output_dir", type=str, default="./trajectories", help="Output directory for trajectories")
+    parser.add_argument("--n_samples", type=int, default=50000, help="Number of samples for point cloud sampling")
+    parser.add_argument("--display", action="store_true", help="Display paths")
+    parser.add_argument("--max_dist", type=float, default=0.004, help="Max distance for path generation")
+    parser.add_argument("--thickness", type=float, default=0.002, help="Thickness for path generation")
+    parser.add_argument("--bbox_scale", type=float, default=1.1, help="Bounding box scale for path generation")
+    parser.add_argument("--home_point", type=tuple, default=((0.04, -0.04, 0.11), (0, 0, -1)), help="Home point for path generation")
+    args = parser.parse_args()
+
+    main(
+        folder_name=args.folder,
+        output_dir=args.output_dir,
+        n_samples=args.n_samples,
+        display=args.display,
+        max_dist=args.max_dist,
+        thickness=args.thickness,
+        bbox_scale=args.bbox_scale,
+        home_point=args.home_point,
+    )
