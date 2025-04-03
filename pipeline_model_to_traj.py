@@ -204,6 +204,7 @@ def main(
     output_dir="./trajectories",
     n_samples=100_000,
     display=False,
+    display_orientation=False,
     max_dist=0.004,
     thickness=0.002,
     bbox_scale=1.1,
@@ -242,7 +243,7 @@ def main(
         thickness=0.002,
         bbox_scale=1,
         home_point=((0.04, -0.04, 0.11), (0, 0, -1)),
-        verbose=False,
+        verbose=True,
     )
 
     end_path = time.time()
@@ -253,7 +254,7 @@ def main(
         res = json.load(f)
 
     if display:
-        p = Process(target=plot_paths_process, args=(mesh, res, restricted_face))
+        p = Process(target=plot_paths_process, args=(mesh, res, restricted_face, display_orientation))
         p.start()
 
     trajectory_folder = f"{output_dir}/trajectory_{folder_name}_{timestamp}"

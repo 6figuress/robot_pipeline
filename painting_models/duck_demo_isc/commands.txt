@@ -1,0 +1,6 @@
+To generate all the paths and give to IK
+uv run pipeline_model_to_traj.py --folder "duck_demo_isc" --n_samples 100_000 --max_dist 0.01 --bbox_scale 1.2
+
+
+To display last paths file :
+uv run pipeline_model_to_traj.py --folder "duck_demo_isc" --just_display
