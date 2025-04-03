@@ -2,9 +2,6 @@ import csv
 from math import radians
 from urbasic import ISCoin, CameraSettings, FocusSettings, Joint6D
 
-from ur_ikfast.ur_kinematics import generate_trajectory
-
-
 import cv2 as cv
 from cv2.typing import Vec6f
 import numpy as np
@@ -138,33 +135,6 @@ def readPosesFromCSV(path: str) -> np.ndarray[Vec6f]:
             angles = np.array(row[:6], dtype=np.float32)
             poses.append(angles)
     return angles
-
-
-def startAuto(filePath, interpolation_n=5):
-    from calibrate import readCSV
-
-    poses = readCSV(filePath)
-
-    poses: list[Vec6f] = [p[0] for p in poses]
-
-    final_poses = []
-
-    for i in range(0, len(poses), 2):
-        if len(poses) > i + 1:
-            start = poses[i]
-            end = poses[i + 1]
-
-            for j in range(interpolation_n):
-                final_poses.append(start + (end - start) * (j / interpolation_n))
-
-    final_poses = np.array(final_poses)
-
-    generate_trajectory(final_poses, "traj.json")
-
-    import ipdb
-
-    ipdb.set_trace()
-
 
 def autoFromFile(path, cam, iscoin):
     i = 0

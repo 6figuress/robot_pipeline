@@ -4,7 +4,6 @@ from camera_sync import Transform, vizPoses
 import numpy as np
 from ur_ikfast.ur_kinematics import URKinematics, MultiURKinematics
 
-
 from calibrate import loadCalibration
 
 def convert_poses_to_transforms(poses):
@@ -29,7 +28,6 @@ def apply_transform_chain(transforms, duck2robot):
     return [t.combine(duck2robot) for t in transforms]
 
 def generate_trajectory_file(data, filename):
-    filename = f"./trajectories/{filename}"
     modTraj = []
     time_step = 1_000_000_000  # Incrément du temps [us]
     time = 4_000_000_000
@@ -62,7 +60,7 @@ def generateTrajectoryFromPoses(poses, filename="trajectory.json", graph=False, 
         - poses A list of pose [x, y, z, qx, qy, qz, qw]
     """
 
-    kine = URKinematics("ur3e_pen_final")
+    kine = URKinematics("ur3e_pen")
     multi = MultiURKinematics(kine)
 
     transf = convert_poses_to_transforms(poses)

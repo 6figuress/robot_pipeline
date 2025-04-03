@@ -151,7 +151,7 @@ def get_paths(mesh, nopaint_mask, name, restricted_face=None):
         tube_length=5e1, diameter=2e-2, cone_height=1e-2, step_angle=36, num_vectors=12
     )
 
-    res = mesh_to_paths(mesh=mesh, n_samples=50_000, nopaint_mask=nopaint_mask, max_dist=0.0012, home_point=((0, 0, 0.11), (0, 0, -1)), verbose=True, ditherer=dither, path_analyzer=path_analyzer, bbox_scale=1, nz_threshold=-1.0, thickness=0.0006, restricted_face=restricted_face)
+    res = mesh_to_paths(mesh=mesh, n_samples=50_000, nopaint_mask=nopaint_mask, max_dist=0.004, home_point=((0.04, -0.04, 0.11), (0, 0, -1)), verbose=True, ditherer=dither, path_analyzer=path_analyzer, bbox_scale=1, nz_threshold=-1.0, thickness=0.002, restricted_face=restricted_face)
     # res = mesh_to_paths(mesh=mesh, n_samples=50_000, max_dist=0.0012, home_point=((0, 0, 0.1), (0, 0, -1)), verbose=True, ditherer=dither, path_analyzer=path_analyzer, bbox_scale=1, nz_threshold=-1.0, thickness=0.0)
 
 
@@ -163,7 +163,6 @@ def get_paths(mesh, nopaint_mask, name, restricted_face=None):
         json.dump(res, f, indent=4, cls=NumpyEncoder)
     print(f"Paths saved to {name}")
 
-
 #  ---------------- MAIN ----------------
 start_pipeline = time.time()
 # folder_name = "cube_edge_top"
@@ -171,13 +170,16 @@ start_pipeline = time.time()
 # folder_name = "duck_crown"
 # folder_name = "duck_eyes"
 # folder_name = "duck_eyes_colored"
-folder_name = "duck_one_eye"
+# folder_name = "duck_line"
+# folder_name = "duck_one_eye"
 # folder_name = "duck_eyes_crown"
 # folder_name = "cube_isc_side_filled"
 # folder_name = "duck_spiderman_glb"
+folder_name = "duck_isc_filled_right_side"
+# folder_name = "cube_isc_side_filled"
 
 # painting_faces = ["top", "bottom", "left", "right","front", "back"]
-painting_faces = ["top", "left", "right","front"]
+painting_faces = ["top", "left", "right","front", "back"]
 restricted_face = [3, 8] #bottom
 
 
@@ -208,38 +210,36 @@ p.start()
 
 list_poses = []
 number_of_poses = 0
+trajectory_folder = f"./trajectories/trajectory_{folder_name}_{timestamp}"
+if not os.path.exists(trajectory_folder):
+    os.makedirs(trajectory_folder)
+
 for r in res:
     face = r[0] # name of the face
     color = r[1] # color of the face in rgba
     paths = r[2] # path of the face
 
+    trajectory_filename = os.path.join(trajectory_folder, f"trajectory_{face}_{color}.json")
+
     if face in painting_faces:
-        # TODO implement pen color change here, maybe order the paths by color so that we can change the color once
         poses = [[*path[0], *path[1]] for path in paths]
         number_of_poses += len(poses)
         if len(poses) > 0:
             print(f"Adding {len(poses)} poses for face {face} with color {color}")
             list_poses.append(poses)
+
+            start_IK = time.time()
+            generateTrajectoryFromPoses(
+                poses,
+                filename=trajectory_filename,
+                graph=False,
+                verbose=True
+            )
+            end_IK = time.time()
+            print(f"IK for face {face}, color {color} and {len(poses)} poses took {end_IK - start_IK} seconds")
         else:
             print(f"Skipping face {face} with color {color} because it has no poses")
     else:
         print(f"Skipping face {face} with color {color} and {len(paths)} paths because it is not in the painting faces list")
 
-
-trajectory_filename = f"trajectory_{folder_name}_{timestamp}"
-
-start_IK = time.time()
-if number_of_poses == 0:
-    print("No poses found, skipping IK")
-else :
-    print(f"Starting IK for {number_of_poses} poses")
-    generateTrajectoryFromMultiplePoses(
-        list_poses=list_poses,
-        filename=trajectory_filename,
-        graph=False,
-        verbose=True
-    )
-end_IK = time.time()
-print(f"Path generation took {end_path - start_pipeline} seconds")
-print(f"IK took {end_IK - start_IK} seconds")
-print(f"Pipeline took {end_IK - start_pipeline} seconds")
+print(f"Pipeline took {time.time() - start_pipeline} seconds")
