@@ -209,7 +209,11 @@ def main(folder_name, output_dir="./trajectories", n_samples=50_000, display=Fal
         color = r[1] # color of the face in rgba
         paths = r[2] # path of the face
 
-        trajectory_filename = os.path.join(trajectory_folder, f"trajectory_{face}_{color}.json")
+        trajectory_face_folder = os.path.join(trajectory_folder, face)
+        if not os.path.exists(trajectory_face_folder):
+            os.makedirs(trajectory_face_folder)
+
+        trajectory_filename = os.path.join(trajectory_face_folder, f"{color}.json")
 
         if face in painting_faces:
             poses = [[*path[0], *path[1]] for path in paths]
