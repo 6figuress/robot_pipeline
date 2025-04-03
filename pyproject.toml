@@ -15,7 +15,7 @@ dependencies = [
 [tool.uv.sources]
 duck-factory = { git = "https://github.com/6figuress/DuckFactory.git", rev = "main" }
 urbasic = { git = "https://github.com/6figuress/ur3e-control.git" }
-ikfast = { git = "https://github.com/6figuress/ur3e-ik.git", rev = "main"}
+ikfast = { git = "https://github.com/6figuress/ur3e-ik.git", rev = "a21efeb00d28e46912b960404ea4d0d38476bb21"}
 camera-sync = { git = "https://github.com/6figuress/CameraCalibration.git" }
 
 [dependency-groups]
