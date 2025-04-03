@@ -153,11 +153,11 @@ def get_mesh(folder_path):
     return mesh, nopaint_mask
 
 
-def plot_paths_process(mesh, res, restricted_face):
+def plot_paths_process(mesh, res, restricted_face, display_orientation=True):
     from duck_factory.mesh_to_paths import plot_paths
 
     restricted_face = [4, 6]
-    plot_paths(mesh, res, restricted_face=restricted_face)
+    plot_paths(mesh, res, restricted_face=restricted_face, display_orientation=display_orientation)
 
 
 def get_paths(
@@ -191,7 +191,7 @@ def get_paths(
         nz_threshold=-1.0,
         thickness=thickness,
         restricted_face=restricted_face,
-        point_offset=0.0019
+        point_offset=0.0022,
     )
 
     with open(f"{name}", "w") as f:
@@ -295,6 +295,22 @@ def main(
 
     print(f"Pipeline took {time.time() - start_pipeline} seconds")
 
+def display_last(folder_name, display_orientation=False):
+
+    folder_path = f"./painting_models/{folder_name}"
+
+    restricted_face = [3, 8]  # Bottom
+
+    mesh, nopaint_mask = get_mesh(folder_path)
+    modify_mesh_position(mesh, rotation_angle=0)
+
+    latest_path = load_latest_timestamped_file(folder_path, "paths")
+    print(f"Loading {latest_path} path file")
+    with open(latest_path, "r") as f:
+        res = json.load(f)
+
+    p = Process(target=plot_paths_process, args=(mesh, res, restricted_face, display_orientation))
+    p.start()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Mesh to trajectory pipeline")
@@ -332,7 +348,13 @@ if __name__ == "__main__":
         default=((0.04, -0.04, 0.11), (0, 0, -1)),
         help="Home point for path generation",
     )
+    parser.add_argument("--just_display", action="store_true", help="Display last paths")
+    parser.add_argument("--display_orientation", action="store_true", help="Display orientation")
     args = parser.parse_args()
+
+    if args.just_display:
+        display_last(args.folder, display_orientation=args.display_orientation)
+        exit(0)
 
     main(
         folder_name=args.folder,
