@@ -20,6 +20,7 @@ from multiprocessing import Process
 
 import argparse
 
+
 def modify_mesh_position(mesh, rotation_angle=0):
     mesh.vertices = np.column_stack(
         (
@@ -41,7 +42,9 @@ def modify_mesh_position(mesh, rotation_angle=0):
 
     # mesh.apply_translation([0, 0, 0.05])
 
-    angle_rad = np.radians(rotation_angle+270) # the 270 are the default orientation of the duck
+    angle_rad = np.radians(
+        rotation_angle + 270
+    )  # the 270 are the default orientation of the duck
     rotation_matrix = trimesh.transformations.rotation_matrix(
         angle_rad,
         [0, 0, 1],
@@ -51,18 +54,22 @@ def modify_mesh_position(mesh, rotation_angle=0):
     # Apply the transformation
     mesh.apply_transform(rotation_matrix)
 
+
 class NumpyEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, np.ndarray):
             return obj.tolist()
         return super().default(obj)
 
+
 def load_latest_timestamped_file(folder_path, prefix):
     """
     Finds the latest file in `folder_path` that starts with `prefix`
     and ends with `.json`, using Swiss timestamp format in the filename.
     """
-    pattern = re.compile(rf"{re.escape(prefix)}_(\d{{2}}\.\d{{2}}\.\d{{4}}_\d{{2}}h\d{{2}}m\d{{2}}s)\.json")
+    pattern = re.compile(
+        rf"{re.escape(prefix)}_(\d{{2}}\.\d{{2}}\.\d{{4}}_\d{{2}}h\d{{2}}m\d{{2}}s)\.json"
+    )
 
     candidates = []
     for filename in os.listdir(folder_path):
@@ -81,10 +88,11 @@ def load_latest_timestamped_file(folder_path, prefix):
     latest = max(candidates)[1]
     return os.path.join(folder_path, latest)
 
+
 def find_ext_files(directory, extension=".obj"):
     ext_files = []
     escaped_ext = re.escape(extension)
-    pattern = re.compile(rf'.*{escaped_ext}$', re.IGNORECASE)
+    pattern = re.compile(rf".*{escaped_ext}$", re.IGNORECASE)
 
     for root, _, files in os.walk(directory):
         for file in files:
@@ -101,6 +109,7 @@ def find_ext_files(directory, extension=".obj"):
             print(f"- {file}")
         print("Returning the first one.")
     return ext_files[0]
+
 
 def convert_glb_to_obj(glb_file_path):
     result = subprocess.run(["./gltf_obj.sh", glb_file_path])
@@ -127,42 +136,79 @@ def get_mesh(folder_path):
             convert_glb_to_obj(glb_file)
             mesh_file_path = find_ext_files(folder_path, extension=".obj")
             if not mesh_file_path:
-                raise FileNotFoundError(f"Failed to find .obj file after conversion in {folder_path}")
+                raise FileNotFoundError(
+                    f"Failed to find .obj file after conversion in {folder_path}"
+                )
         else:
             raise FileNotFoundError(f"No model file found in {folder_path}")
-        
+
     # Check if the file "nopaint_mask.png" exists in the same directory
     nopaint_mask_path = os.path.join(folder_path, "nopaint_mask.png")
     nopaint_mask = None
     if os.path.exists(nopaint_mask_path):
         print(f"Loading nopaint mask from {nopaint_mask_path}")
         nopaint_mask = Image.open(nopaint_mask_path).convert("L")
-        
+
     mesh = load_mesh(mesh_file_path)
     return mesh, nopaint_mask
-    
+
+
 def plot_paths_process(mesh, res, restricted_face):
     from duck_factory.mesh_to_paths import plot_paths
-    restricted_face = [4, 6] 
+
+    restricted_face = [4, 6]
     plot_paths(mesh, res, restricted_face=restricted_face)
 
-def get_paths(mesh, nopaint_mask, name, restricted_face=None, n_samples=50_000, max_dist=0.004, thickness=0.002, bbox_scale=1.1, home_point=((0.04, -0.04, 0.11), (0, 0, -1)), verbose=True):
+
+def get_paths(
+    mesh,
+    nopaint_mask,
+    name,
+    restricted_face=None,
+    n_samples=50_000,
+    max_dist=0.004,
+    thickness=0.002,
+    bbox_scale=1.1,
+    home_point=((0.04, -0.04, 0.11), (0, 0, -1)),
+    verbose=True,
+):
     # dither = Dither(factor=1.0, algorithm="fs", nc=2)
     dither = Dither(factor=1.0, algorithm="SimplePalette", nc=2)
     path_analyzer = PathAnalyzer(
         tube_length=5e1, diameter=2e-2, cone_height=1e-2, step_angle=36, num_vectors=12
     )
 
-    res = mesh_to_paths(mesh=mesh, n_samples=n_samples, nopaint_mask=nopaint_mask, max_dist=max_dist, home_point=home_point, verbose=verbose, ditherer=dither, path_analyzer=path_analyzer, bbox_scale=bbox_scale, nz_threshold=-1.0, thickness=thickness, restricted_face=restricted_face)
+    res = mesh_to_paths(
+        mesh=mesh,
+        n_samples=n_samples,
+        nopaint_mask=nopaint_mask,
+        max_dist=max_dist,
+        home_point=home_point,
+        verbose=verbose,
+        ditherer=dither,
+        path_analyzer=path_analyzer,
+        bbox_scale=bbox_scale,
+        nz_threshold=-1.0,
+        thickness=thickness,
+        restricted_face=restricted_face,
+        point_offset=0.0019
+    )
 
     with open(f"{name}", "w") as f:
         json.dump(res, f, indent=4, cls=NumpyEncoder)
     print(f"Paths saved to {name}")
 
 
-
-
-def main(folder_name, output_dir="./trajectories", n_samples=50_000, display=False, max_dist=0.004, thickness=0.002, bbox_scale=1.1, home_point=((0.04, -0.04, 0.11), (0, 0, -1))):
+def main(
+    folder_name,
+    output_dir="./trajectories",
+    n_samples=100_000,
+    display=False,
+    max_dist=0.004,
+    thickness=0.002,
+    bbox_scale=1.1,
+    home_point=((0.04, -0.04, 0.11), (0, 0, -1)),
+):
     """
     Main function to run the pipeline"
     Parameters:
@@ -186,7 +232,18 @@ def main(folder_name, output_dir="./trajectories", n_samples=50_000, display=Fal
     modify_mesh_position(mesh, rotation_angle=0)
 
     paths_file_path = f"{folder_path}/paths_{timestamp}.json"
-    get_paths(mesh, nopaint_mask, paths_file_path, restricted_face=restricted_face, n_samples=n_samples, max_dist=0.004, thickness=0.002, bbox_scale=1, home_point=((0.04, -0.04, 0.11), (0, 0, -1)), verbose=False)
+    get_paths(
+        mesh,
+        nopaint_mask,
+        paths_file_path,
+        restricted_face=restricted_face,
+        n_samples=n_samples,
+        max_dist=0.004,
+        thickness=0.002,
+        bbox_scale=1,
+        home_point=((0.04, -0.04, 0.11), (0, 0, -1)),
+        verbose=False,
+    )
 
     end_path = time.time()
 
@@ -205,9 +262,9 @@ def main(folder_name, output_dir="./trajectories", n_samples=50_000, display=Fal
         os.makedirs(trajectory_folder)
 
     for r in res:
-        face = r[0] # name of the face
-        color = r[1] # color of the face in rgba
-        paths = r[2] # path of the face
+        face = r[0]  # name of the face
+        color = r[1]  # color of the face in rgba
+        paths = r[2]  # path of the face
 
         trajectory_face_folder = os.path.join(trajectory_folder, face)
         if not os.path.exists(trajectory_face_folder):
@@ -221,30 +278,60 @@ def main(folder_name, output_dir="./trajectories", n_samples=50_000, display=Fal
                 print(f"Adding {len(poses)} poses for face {face} with color {color}")
                 start_IK = time.time()
                 generateTrajectoryFromPoses(
-                    poses,
-                    filename=trajectory_filename,
-                    graph=False,
-                    verbose=True
+                    poses, filename=trajectory_filename, graph=False, verbose=True
                 )
                 end_IK = time.time()
-                print(f"IK for face {face}, color {color} and {len(poses)} poses took {end_IK - start_IK} seconds")
+                print(
+                    f"IK for face {face}, color {color} and {len(poses)} poses took {end_IK - start_IK} seconds"
+                )
             else:
-                print(f"Skipping face {face} with color {color} because it has no poses")
+                print(
+                    f"Skipping face {face} with color {color} because it has no poses"
+                )
         else:
-            print(f"Skipping face {face} with color {color} and {len(paths)} paths because it is not in the painting faces list")
+            print(
+                f"Skipping face {face} with color {color} and {len(paths)} paths because it is not in the painting faces list"
+            )
 
     print(f"Pipeline took {time.time() - start_pipeline} seconds")
 
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Mesh to trajectory pipeline")
-    parser.add_argument("--folder", type=str, required=True, help="Folder name under ./painting_models/")
-    parser.add_argument("--output_dir", type=str, default="./trajectories", help="Output directory for trajectories")
-    parser.add_argument("--n_samples", type=int, default=50000, help="Number of samples for point cloud sampling")
+    parser.add_argument(
+        "--folder", type=str, required=True, help="Folder name under ./painting_models/"
+    )
+    parser.add_argument(
+        "--output_dir",
+        type=str,
+        default="./trajectories",
+        help="Output directory for trajectories",
+    )
+    parser.add_argument(
+        "--n_samples",
+        type=int,
+        default=50000,
+        help="Number of samples for point cloud sampling",
+    )
     parser.add_argument("--display", action="store_true", help="Display paths")
-    parser.add_argument("--max_dist", type=float, default=0.004, help="Max distance for path generation")
-    parser.add_argument("--thickness", type=float, default=0.002, help="Thickness for path generation")
-    parser.add_argument("--bbox_scale", type=float, default=1.1, help="Bounding box scale for path generation")
-    parser.add_argument("--home_point", type=tuple, default=((0.04, -0.04, 0.11), (0, 0, -1)), help="Home point for path generation")
+    parser.add_argument(
+        "--max_dist", type=float, default=0.004, help="Max distance for path generation"
+    )
+    parser.add_argument(
+        "--thickness", type=float, default=0.002, help="Thickness for path generation"
+    )
+    parser.add_argument(
+        "--bbox_scale",
+        type=float,
+        default=1.1,
+        help="Bounding box scale for path generation",
+    )
+    parser.add_argument(
+        "--home_point",
+        type=tuple,
+        default=((0.04, -0.04, 0.11), (0, 0, -1)),
+        help="Home point for path generation",
+    )
     args = parser.parse_args()
 
     main(
